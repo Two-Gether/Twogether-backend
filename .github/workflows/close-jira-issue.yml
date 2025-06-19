@@ -1,0 +1,60 @@
+name: Close Jira issue
+
+on:
+  issues:
+    types:
+      - closed
+
+permissions:
+  contents: read
+
+jobs:
+  close-issue:
+    name: Close Jira issue
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Login to Jira
+        uses: atlassian/gajira-login@v3
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+
+      - name: Extract Jira issue key from GitHub issue title
+        id: extract-key
+        run: |
+          TITLE="${{ github.event.issue.title }}"
+          JIRA_KEY=$(echo "$TITLE" | grep -oE '[A-Za-z]+-[0-9]+' | head -1)
+          if [[ -z "$JIRA_KEY" ]]; then
+            echo "No Jira issue key found in title."
+            exit 1
+          fi
+          echo "jira_key=$JIRA_KEY" >> $GITHUB_OUTPUT
+          echo "JIRA_KEY=$JIRA_KEY" >> $GITHUB_ENV
+
+      - name: Get available transitions from Jira
+        id: get-transitions
+        run: |
+          RESPONSE=$(curl -s -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -H "Accept: application/json" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/${{ env.JIRA_KEY }}/transitions")
+
+          # 원하는 상태 이름 설정: "완료" 또는 "Done"
+          TRANSITION_ID=$(echo "$RESPONSE" | jq -r '.transitions[] | select(.name=="완료") | .id')
+
+          if [[ -z "$TRANSITION_ID" ]]; then
+            echo "⚠️ No transition named '완료' found."
+            echo "Available transitions:"
+            echo "$RESPONSE" | jq -r '.transitions[].name'
+            exit 1
+          fi
+
+          echo "transition_id=$TRANSITION_ID" >> $GITHUB_OUTPUT
+          echo "TRANSITION_ID=$TRANSITION_ID" >> $GITHUB_ENV
+
+      - name: Transition Jira issue to 완료
+        uses: atlassian/gajira-transition@v3
+        with:
+          issue: ${{ env.JIRA_KEY }}
+          transition: ${{ steps.get-transitions.outputs.transition_id }}
