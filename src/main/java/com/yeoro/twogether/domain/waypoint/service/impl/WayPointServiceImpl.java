@@ -39,11 +39,11 @@ public class WayPointServiceImpl implements WaypointService {
     }
 
     /**
-     * <p>waypointId 기반으로 waypoint name, waypointItem name & imageUrl 조회</p>
+     * <p>waypointId 기반으로 waypoint name, waypointItem name & imageUrl (SummaryList) 조회</p>
      * 존재하지 않으면 ServiceException 발생
      */
     @Override
-    public WaypointItemSummaryListResponse getWaypointId(Long waypointId) {
+    public WaypointItemSummaryListResponse getWaypointSummaryList(Long waypointId) {
         Waypoint waypoint = waypointRepository.findById(waypointId).orElseThrow(null);
         List<WaypointItem> waypointItems = waypointItemRepository.findWaypointItemsByWaypointId(waypointId);
         return waypointItemMapper.toWaypointItemSummaryListResponse(waypoint.getName(), waypointItems);
