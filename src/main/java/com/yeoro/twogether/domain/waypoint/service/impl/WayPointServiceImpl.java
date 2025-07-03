@@ -25,7 +25,7 @@ public class WayPointServiceImpl implements WaypointService {
     /**
      * <p>넘어온 name으로 waypoint 생성</p>
      * <p>저장 후 생성된 waypointId 반환</p>
-     * member controller 구현 완료 후 waypoint에 추가 ( 관련 Service도 변경 예정 )
+     * member controller 구현 완료 후 waypoint에 추가 ( 관련 Service도 변경 예정 , member 관련 검증들 아직 미구현 )
      */
     @Override
     @Transactional
@@ -70,6 +70,7 @@ public class WayPointServiceImpl implements WaypointService {
     @Transactional
     public void deleteWaypoint(Long waypointId) {
         Waypoint waypoint = waypointRepository.findById(waypointId).orElseThrow(null);
+        waypointItemRepository.deleteByWaypointId(waypointId);
         waypointRepository.delete(waypoint);
     }
 }
