@@ -38,4 +38,8 @@ public class Waypoint extends BaseTime {
         this.name = name;
         this.member = member;
     }
+
+    public void updateWaypoint(String name) {
+        this.name = name;
+    }
 }
