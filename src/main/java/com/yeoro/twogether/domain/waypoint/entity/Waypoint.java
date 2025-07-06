@@ -1,8 +1,12 @@
 package com.yeoro.twogether.domain.waypoint.entity;
 
 
+import static com.yeoro.twogether.global.exception.ErrorCode.WAYPOINT_OWNERSHIP_MISMATCH;
+
 import com.yeoro.twogether.domain.member.entity.Member;
 import com.yeoro.twogether.global.entity.BaseTime;
+import com.yeoro.twogether.global.exception.ErrorCode;
+import com.yeoro.twogether.global.exception.ServiceException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -41,5 +45,11 @@ public class Waypoint extends BaseTime {
 
     public void updateWaypoint(String name) {
         this.name = name;
+    }
+
+    public void validateMemberOwnsWaypoint(Member member) {
+        if(this.member != member) {
+            throw new ServiceException(WAYPOINT_OWNERSHIP_MISMATCH);
+        }
     }
 }
