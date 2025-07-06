@@ -14,7 +14,6 @@ public enum ErrorCode {
     // Token Errors
     TOKEN_EXPIRED("401-1", "token.expired", HttpStatus.UNAUTHORIZED),
     TOKEN_INVALID("401-2", "token.invalid", HttpStatus.UNAUTHORIZED),
-    TOKEN_EXTRACT_FAILED("401-3", "token.extract.failed", HttpStatus.UNAUTHORIZED),
 
     // Waypoint Errors
     WAYPOINT_NOT_FOUND("405-1", "waypoint.not.found", HttpStatus.NOT_FOUND),
