@@ -1,6 +1,7 @@
 package com.yeoro.twogether.global.config;
 
 import com.yeoro.twogether.global.config.oauth.CustomOAuth2SuccessHandler;
+import com.yeoro.twogether.global.filter.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,6 +11,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -24,9 +26,12 @@ public class SecurityConfig {
     private String frontUrl;
 
     private final CustomOAuth2SuccessHandler customOAuth2SuccessHandler;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(CustomOAuth2SuccessHandler customOAuth2SuccessHandler) {
+    public SecurityConfig(CustomOAuth2SuccessHandler customOAuth2SuccessHandler,
+        JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.customOAuth2SuccessHandler = customOAuth2SuccessHandler;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
     @Bean
@@ -51,7 +56,8 @@ public class SecurityConfig {
                 })
                 .oauth2Login(oauth2 ->
                         oauth2.successHandler(customOAuth2SuccessHandler)
-                );
+                )
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
