@@ -4,7 +4,6 @@ import static com.yeoro.twogether.global.exception.ErrorCode.TOKEN_EXTRACT_FAILE
 
 import com.yeoro.twogether.global.argumentResolver.CustomUserDetails;
 import com.yeoro.twogether.global.constant.AppConstants;
-import com.yeoro.twogether.global.exception.ErrorCode;
 import com.yeoro.twogether.global.exception.ServiceException;
 import com.yeoro.twogether.global.token.JwtService;
 import io.jsonwebtoken.Claims;
@@ -38,7 +37,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         Long memberId = claims.get("memberId", Long.class);
         UsernamePasswordAuthenticationToken auth =
-            new UsernamePasswordAuthenticationToken(new CustomUserDetails(memberId), null, List.of());
+            new UsernamePasswordAuthenticationToken(new CustomUserDetails(memberId), null,
+                List.of());
         SecurityContextHolder.getContext().setAuthentication(auth);
 
         filterChain.doFilter(request, response);
