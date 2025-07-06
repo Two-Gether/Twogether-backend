@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface WaypointItemRepository extends JpaRepository<WaypointItem, Long> {
+
     List<WaypointItem> findWaypointItemsByWaypointId(Long waypointId);
+
     void deleteByWaypointId(Long waypointId);
 }

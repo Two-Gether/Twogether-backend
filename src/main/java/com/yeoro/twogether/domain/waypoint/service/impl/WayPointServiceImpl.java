@@ -4,13 +4,17 @@ import static com.yeoro.twogether.global.exception.ErrorCode.WAYPOINT_NOT_FOUND;
 
 import com.yeoro.twogether.domain.member.entity.Member;
 import com.yeoro.twogether.domain.member.service.MemberService;
-import com.yeoro.twogether.domain.waypoint.dto.WaypointItemSummaryListResponse;
+import com.yeoro.twogether.domain.waypoint.dto.request.WaypointCreateRequest;
+import com.yeoro.twogether.domain.waypoint.dto.request.WaypointUpdateRequest;
+import com.yeoro.twogether.domain.waypoint.dto.response.WaypointCreateResponse;
+import com.yeoro.twogether.domain.waypoint.dto.response.WaypointUpdateResponse;
+import com.yeoro.twogether.domain.waypoint.dto.response.WaypointWithItemsResponse;
 import com.yeoro.twogether.domain.waypoint.entity.Waypoint;
 import com.yeoro.twogether.domain.waypoint.entity.WaypointItem;
 import com.yeoro.twogether.domain.waypoint.repository.WaypointItemRepository;
 import com.yeoro.twogether.domain.waypoint.repository.WaypointRepository;
 import com.yeoro.twogether.domain.waypoint.service.WaypointService;
-import com.yeoro.twogether.domain.waypoint.service.mapper.WaypointItemMapper;
+import com.yeoro.twogether.domain.waypoint.service.mapper.WaypointMapper;
 import com.yeoro.twogether.global.exception.ServiceException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +29,7 @@ public class WayPointServiceImpl implements WaypointService {
     private final MemberService memberService;
     private final WaypointRepository waypointRepository;
     private final WaypointItemRepository waypointItemRepository;
-    private final WaypointItemMapper waypointItemMapper;
+    private final WaypointMapper waypointMapper;
 
     /**
      * <p>name & memberId를 통한 member 기반 waypoint 생성</p>
@@ -33,14 +37,14 @@ public class WayPointServiceImpl implements WaypointService {
      */
     @Override
     @Transactional
-    public Long createWaypoint(Long memberId, String name) {
+    public WaypointCreateResponse createWaypoint(Long memberId, WaypointCreateRequest request) {
         Member member = memberService.getMemberByMemberId(memberId);
         Waypoint waypoint = Waypoint.builder()
-            .name(name)
+            .name(request.name())
             .member(member)
             .build();
         waypointRepository.save(waypoint);
-        return waypoint.getId();
+        return new WaypointCreateResponse(waypoint.getId());
     }
 
     /**
@@ -48,10 +52,11 @@ public class WayPointServiceImpl implements WaypointService {
      * 존재하지 않으면 ServiceException 발생
      */
     @Override
-    public WaypointItemSummaryListResponse getWaypointSummaryList(Long memberId, Long waypointId) {
+    public WaypointWithItemsResponse getWaypoint(Long memberId, Long waypointId) {
         Waypoint waypoint = validateAndGetWaypoint(memberId, waypointId);
-        List<WaypointItem> waypointItems = waypointItemRepository.findWaypointItemsByWaypointId(waypointId);
-        return waypointItemMapper.toWaypointItemSummaryListResponse(waypoint.getName(), waypointItems);
+        List<WaypointItem> waypointItems = waypointItemRepository.findWaypointItemsByWaypointId(
+            waypointId);
+        return waypointMapper.toWaypointWithItemsResponse(waypoint.getName(), waypointItems);
     }
 
     /**
@@ -60,11 +65,12 @@ public class WayPointServiceImpl implements WaypointService {
      */
     @Override
     @Transactional
-    public Long updateWaypoint(Long memberId, Long waypointId, String name) {
+    public WaypointUpdateResponse updateWaypoint(Long memberId, Long waypointId,
+        WaypointUpdateRequest request) {
         Waypoint waypoint = validateAndGetWaypoint(memberId, waypointId);
-        waypoint.updateWaypoint(name);
+        waypoint.updateWaypoint(request.name());
         waypointRepository.save(waypoint);
-        return waypoint.getId();
+        return new WaypointUpdateResponse(waypoint.getId());
     }
 
     /**
@@ -79,6 +85,9 @@ public class WayPointServiceImpl implements WaypointService {
         waypointRepository.delete(waypoint);
     }
 
+    /**
+     * memberId를 기반으로 Waypoint 검증 후 반환
+     */
     private Waypoint validateAndGetWaypoint(Long memberId, Long waypointId) {
         Waypoint waypoint = waypointRepository.findById(waypointId)
             .orElseThrow(() -> new ServiceException(WAYPOINT_NOT_FOUND));

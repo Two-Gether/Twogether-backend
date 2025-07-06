@@ -1,6 +1,12 @@
 package com.yeoro.twogether.domain.waypoint.service;
 
+import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemAddRequest;
+import com.yeoro.twogether.domain.waypoint.dto.response.WaypointItemCreateResponse;
+
 public interface WaypointItemService {
-    Long addWaypointItem(Long waypointId, String name,  String address, String imageUrl);
-    void deleteWaypointItem(Long waypointItemId);
+
+    WaypointItemCreateResponse addWaypointItem(Long memberId, Long waypointId,
+        WaypointItemAddRequest request);
+
+    void deleteWaypointItem(Long memberId, Long waypointId, Long waypointItemId);
 }

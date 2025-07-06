@@ -1,7 +1,10 @@
 package com.yeoro.twogether.domain.waypoint.entity;
 
-import co.elastic.clients.elasticsearch.xpack.usage.Base;
+import static com.yeoro.twogether.global.exception.ErrorCode.WAYPOINT_ITEM_NOT_MATCHED;
+
+import com.yeoro.twogether.domain.member.entity.Member;
 import com.yeoro.twogether.global.entity.BaseTime;
+import com.yeoro.twogether.global.exception.ServiceException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -44,5 +47,15 @@ public class WaypointItem extends BaseTime {
         this.address = address;
         this.imageUrl = imageUrl;
         this.waypoint = waypoint;
+    }
+
+    public void validateBelongsTo(Long waypointId) {
+        if (!this.waypoint.getId().equals(waypointId)) {
+            throw new ServiceException(WAYPOINT_ITEM_NOT_MATCHED);
+        }
+    }
+
+    public void validateOwnedBy(Member member) {
+        this.waypoint.validateMemberOwnsWaypoint(member);
     }
 }
