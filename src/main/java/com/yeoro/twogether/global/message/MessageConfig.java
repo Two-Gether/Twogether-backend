@@ -10,6 +10,9 @@ public class MessageConfig {
 
     @Bean
     public MessageSource messageSource() {
-        return new ResourceBundleMessageSource();
+        ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
+        messageSource.setBasename("messages"); // Basename 명시
+        messageSource.setDefaultEncoding("UTF-8"); // 인코딩 타입 명시
+        return messageSource;
     }
 }
