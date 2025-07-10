@@ -36,5 +36,11 @@ out/
 ### VS Code ###
 .vscode/
 
-## db
+### db ###
 *.db
+
+### macOs ###
+.DS_Store
+
+### *.yml ###
+application-*.yml

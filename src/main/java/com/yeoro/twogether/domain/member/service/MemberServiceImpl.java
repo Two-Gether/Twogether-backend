@@ -96,4 +96,16 @@ public class MemberServiceImpl implements MemberService {
                 .map(Member::getId)
                 .orElse(null);  // 파트너가 없을 수 있음
     }
+
+    /**
+     * <p>회원 ID를 기반으로 해당 회원 조회</p>
+     * 없으면 ServiceException 발생
+     */
+    @Override
+    public Member getMemberByMemberId(Long memberId) {
+        return memberRepository.findById(memberId)
+            .orElseThrow(() -> new ServiceException(MEMBER_NOT_FOUND));
+    }
+
+
 }
