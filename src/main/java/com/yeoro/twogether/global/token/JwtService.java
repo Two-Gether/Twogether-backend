@@ -80,4 +80,15 @@ public class JwtService {
         return Keys.hmacShaKeyFor(java.util.HexFormat.of().parseHex(secretKey));
     }
 
+    /**
+     * HTTP 요청 헤더에서 Bearer 토큰 추출
+     */
+    public String resolveToken(jakarta.servlet.http.HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
+    }
+
 }
