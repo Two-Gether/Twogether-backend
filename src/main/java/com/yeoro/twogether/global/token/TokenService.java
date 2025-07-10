@@ -1,5 +1,6 @@
 package com.yeoro.twogether.global.token;
 
+import com.yeoro.twogether.global.exception.ServiceException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -12,6 +13,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+
+import static com.yeoro.twogether.global.exception.ErrorCode.TOKEN_SEND_ERROR;
 
 
 @Slf4j
@@ -54,28 +57,34 @@ public class TokenService {
             String nickname,
             Long partnerId,
             String partnerNickname
-    ) throws IOException {
-        // 1. 헤더에 AccessToken 추가
-        response.setHeader("Authorization", "Bearer " + tokenPair.getAccessToken());
+    ) {
+        try {
+            // 1. 헤더에 AccessToken 추가
+            response.setHeader("Authorization", "Bearer " + tokenPair.getAccessToken());
 
-        // 2. RefreshToken은 HttpOnly 쿠키로 설정
-        jwtService.setRefreshTokenCookie(tokenPair.getRefreshToken(), response);
+            // 2. RefreshToken은 HttpOnly 쿠키로 설정
+            jwtService.setRefreshTokenCookie(tokenPair.getRefreshToken(), response);
 
-        // 3. RefreshToken → 세션
-        storeRefreshTokenInSession(request, memberId, tokenPair.getRefreshToken());
+            // 3. RefreshToken → 세션
+            storeRefreshTokenInSession(request, memberId, tokenPair.getRefreshToken());
 
-        // 4. JSON 바디 응답
-        Map<String, Object> responseBody = new HashMap<>();
-        responseBody.put("accessToken", tokenPair.getAccessToken());
-        responseBody.put("memberId", memberId);
-        responseBody.put("nickname", nickname);
-        responseBody.put("partnerId", partnerId);
-        responseBody.put("partnerNickname", partnerNickname);
+            // 4. JSON 바디 응답
+            Map<String, Object> responseBody = new HashMap<>();
+            responseBody.put("accessToken", tokenPair.getAccessToken());
+            responseBody.put("memberId", memberId);
+            responseBody.put("nickname", nickname);
+            responseBody.put("partnerId", partnerId);
+            responseBody.put("partnerNickname", partnerNickname);
 
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        new com.fasterxml.jackson.databind.ObjectMapper().writeValue(response.getWriter(), responseBody);
+            response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
+            new com.fasterxml.jackson.databind.ObjectMapper().writeValue(response.getWriter(), responseBody);
+
+        } catch (IOException e) {
+            throw new ServiceException(TOKEN_SEND_ERROR);
+        }
     }
+
 
     /**
      * 세션에 RefreshToken 저장
