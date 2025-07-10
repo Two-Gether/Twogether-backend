@@ -1,5 +1,6 @@
 package com.yeoro.twogether.global.config;
 
+import com.yeoro.twogether.global.filter.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,6 +12,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -24,6 +26,12 @@ public class SecurityConfig {
     @Value("${custom.site.frontUrl}")
     private String frontUrl;
 
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -31,9 +39,9 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/",
                                 "/login/**",
+                                "/api/v1/member/**",
                                 "/error",
-                                "/h2-console/**",
-                                "/api/v1/member/**"
+                                "/h2-console/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
@@ -43,12 +51,14 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sessionManagement -> {
                     sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-                });
+                })
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration)
+            throws Exception {
         return configuration.getAuthenticationManager();
     }
 
@@ -57,19 +67,14 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-
     @Bean
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // 허용할 오리진 설정
-        configuration.setAllowedOrigins(Arrays.asList("https://cdpn.io", frontUrl, "http://localhost:3000"));
-        // 허용할 HTTP 메서드 설정
+        configuration.setAllowedOrigins(
+                Arrays.asList("https://cdpn.io", frontUrl, "http://localhost:3000"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE"));
-        // 자격 증명 허용 설정
         configuration.setAllowCredentials(true);
-        // 허용할 헤더 설정
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        // CORS 설정을 소스에 등록
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration);
         return source;

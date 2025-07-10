@@ -15,7 +15,6 @@ public enum ErrorCode {
     NOT_LOCAL_MEMBER("403-1", "member.not.local", HttpStatus.FORBIDDEN),
     PASSWORD_NOT_MATCH("400-3", "member.password.not.match", HttpStatus.BAD_REQUEST),
 
-
     // Partner Errors
     PARTNER_CODE_INVALID("400-1", "partner.code.invalid", HttpStatus.BAD_REQUEST),
     SELF_PARTNER_NOT_ALLOWED("400-2", "partner.self.not.allowed", HttpStatus.BAD_REQUEST),
@@ -28,15 +27,16 @@ public enum ErrorCode {
     // Kakao OAuth Errors
     KAKAO_API_ERROR("500-1", "kakao.api.error", HttpStatus.INTERNAL_SERVER_ERROR),
     KAKAO_PROFILE_PARSE_FAILED("500-2", "kakao.profile.parse.failed", HttpStatus.INTERNAL_SERVER_ERROR),
-    KAKAO_INVALID_TOKEN("401-3", "kakao.invalid.token", HttpStatus.UNAUTHORIZED);
+    KAKAO_INVALID_TOKEN("401-3", "kakao.invalid.token", HttpStatus.UNAUTHORIZED),
 
+    // Waypoint Errors
+    WAYPOINT_NOT_FOUND("405-1", "waypoint.not.found", HttpStatus.NOT_FOUND),
+    WAYPOINT_OWNERSHIP_MISMATCH("405-2", "waypoint.ownership.mismatch", HttpStatus.FORBIDDEN),
 
-
-
-
+    // WaypointItem Errors
+    WAYPOINT_ITEM_NOT_MATCHED("406-1", "waypoint.item.not.matched", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String messageCode; // 메시지 프로퍼티
     private final HttpStatus status;
-
 }
