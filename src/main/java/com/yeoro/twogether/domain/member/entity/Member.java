@@ -7,8 +7,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -20,6 +18,9 @@ public class Member extends BaseTime {
 
     @Column(nullable = true, unique = true)
     private String email;
+
+    @Column(nullable = false)
+    private String password;
 
     @Column(nullable = false, unique = true)
     private String nickname;
@@ -42,18 +43,45 @@ public class Member extends BaseTime {
         return partner != null ? partner.getId() : null;
     }
 
+    /**
+     * 파트너 연결 메서드
+     */
+    public void connectPartner(Member partner) {
+        this.partner = partner;
+    }
+
+    /**
+     * 비밀번호 변경 메서드
+     */
+    public void setPassword(String password) { this.password = password;}
+
+    /**
+     * 프로필이미지 변경 메서드
+     */
+    public void setProfileImageUrl(String profileImageUrl) {this.profileImageUrl = profileImageUrl;}
+
+    /**
+     * 닉네임 변경 메서드
+     */
+    public void setNickname(String nickname) {this.nickname = nickname;}
+
+
+
     @Builder
     public Member(
             String platformId,
             String email,
+            String password,
             String nickname,
             String profileImageUrl,
             LoginPlatform loginPlatform
     ) {
         this.platformId = platformId;
         this.email = email;
+        this.password = password;
         this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
         this.loginPlatform = loginPlatform;
     }
+
 }
