@@ -34,7 +34,7 @@ public class WaypointItemServiceImpl implements WaypointItemService {
     @Override
     public WaypointItemCreateResponse addWaypointItem(Long memberId, Long waypointId,
         WaypointItemAddRequest request) {
-        Member member = memberService.getMemberByMemberId(memberId);
+        Member member = memberService.getCurrentMember(memberId);
         Waypoint waypoint = waypointRepository.findById(waypointId)
             .orElseThrow(() -> new ServiceException(WAYPOINT_NOT_FOUND));
         waypoint.validateMemberOwnsWaypoint(member);
@@ -56,7 +56,7 @@ public class WaypointItemServiceImpl implements WaypointItemService {
      */
     @Override
     public void deleteWaypointItem(Long memberId, Long waypointId, Long waypointItemId) {
-        Member member = memberService.getMemberByMemberId(memberId);
+        Member member = memberService.getCurrentMember(memberId);
         WaypointItem waypointItem = waypointItemRepository.findById(waypointItemId)
             .orElseThrow(() -> new ServiceException(WAYPOINT_NOT_FOUND));
 
