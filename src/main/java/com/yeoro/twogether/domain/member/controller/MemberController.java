@@ -5,12 +5,19 @@ import com.yeoro.twogether.domain.member.dto.LoginResponse;
 import com.yeoro.twogether.domain.member.dto.MemberInfoResponse;
 import com.yeoro.twogether.domain.member.entity.Member;
 import com.yeoro.twogether.domain.member.service.MemberService;
+import com.yeoro.twogether.global.argumentResolver.Login;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
 @RestController
@@ -21,13 +28,12 @@ public class MemberController {
     private final MemberService memberService;
 
     /**
-     * 카카오 OAuth 로그인 API
-     * 프론트에서 전달받은 액세스 토큰을 이용해 로그인 처리
+     * 카카오 OAuth 로그인 API 프론트에서 전달받은 액세스 토큰을 이용해 로그인 처리
      */
     @PostMapping("/oauth/kakao")
     public LoginResponse kakaoLogin(@RequestBody KakaoLoginRequest request,
-                                    HttpServletRequest httpRequest,
-                                    HttpServletResponse httpResponse) {
+        HttpServletRequest httpRequest,
+        HttpServletResponse httpResponse) {
         return memberService.kakaoLogin(request.getAccessToken(), httpRequest, httpResponse);
     }
 
@@ -35,7 +41,8 @@ public class MemberController {
      * 파트너 코드 생성 API
      */
     @PostMapping("/partner/code")
-    public String generatePartnerCode(@RequestParam(name = "memberId") Long memberId, HttpSession session) {
+    public String generatePartnerCode(@RequestParam(name = "memberId") Long memberId,
+        HttpSession session) {
         return memberService.generatePartnerCode(memberId, session);
     }
 
@@ -44,10 +51,10 @@ public class MemberController {
      */
     @PostMapping("/partner/connect")
     public LoginResponse connectPartner(@RequestParam Long requesterId,
-                                        @RequestParam String code,
-                                        HttpSession session,
-                                        HttpServletRequest request,
-                                        HttpServletResponse response) {
+        @RequestParam String code,
+        HttpSession session,
+        HttpServletRequest request,
+        HttpServletResponse response) {
         return memberService.connectPartner(requesterId, code, session, request, response);
     }
 
@@ -55,9 +62,9 @@ public class MemberController {
      * 사용자 정보 조회 API
      */
     @GetMapping("/me")
-    public MemberInfoResponse getMyInfo(HttpServletRequest request) {
-        // JWT에서 사용자 정보 추출
-        Member member = memberService.getCurrentMember(request);
+    public MemberInfoResponse getMyInfo(@Login Long memberId) {
+        // @Login에서 사용자 정보 추출
+        Member member = memberService.getCurrentMember(memberId);
 
         return MemberInfoResponse.of(member);
     }
@@ -66,9 +73,9 @@ public class MemberController {
      * 프로필 이미지 변경 API
      */
     @PutMapping("/me/profile-image")
-    public String updateProfileImage(HttpServletRequest request,
-                                     @RequestParam String newImageUrl) {
-        memberService.updateProfileImage(request, newImageUrl);
+    public String updateProfileImage(@Login Long memberId,
+        @RequestParam String newImageUrl) {
+        memberService.updateProfileImage(memberId, newImageUrl);
         return "프로필 이미지가 성공적으로 변경되었습니다.";
     }
 
@@ -76,9 +83,9 @@ public class MemberController {
      * 닉네임 변경 API
      */
     @PutMapping("/me/nickname")
-    public String updateNickname(HttpServletRequest request,
-                                 @RequestParam String newNickname) {
-        memberService.updateNickname(request, newNickname);
+    public String updateNickname(@Login Long memberId,
+        @RequestParam String newNickname) {
+        memberService.updateNickname(memberId, newNickname);
         return "닉네임이 성공적으로 변경되었습니다.";
     }
 
@@ -86,20 +93,19 @@ public class MemberController {
      * 파트너 연결 끊기 API
      */
     @PutMapping("/me/partner/disconnect")
-    public String disconnectPartner(HttpServletRequest request) {
-        memberService.disconnectPartner(request);
+    public String disconnectPartner(@Login Long memberId) {
+        memberService.disconnectPartner(memberId);
         return "파트너 연결이 성공적으로 해제되었습니다.";
     }
 
     /**
-     * 비밀번호 변경 API
-     * LOCAL 사용자만 가능
+     * 비밀번호 변경 API LOCAL 사용자만 가능
      */
     @PutMapping("/me/password")
-    public String updatePassword(HttpServletRequest request,
-                                 @RequestParam String currentPassword,
-                                 @RequestParam String newPassword) {
-        memberService.updatePassword(request, currentPassword, newPassword);
+    public String updatePassword(@Login Long memberId,
+        @RequestParam String currentPassword,
+        @RequestParam String newPassword) {
+        memberService.updatePassword(memberId, currentPassword, newPassword);
         return "비밀번호가 성공적으로 변경되었습니다.";
     }
 }

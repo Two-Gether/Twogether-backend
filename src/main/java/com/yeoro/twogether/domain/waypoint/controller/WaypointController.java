@@ -63,7 +63,7 @@ public class WaypointController {
      */
     @PatchMapping("/{waypointId}")
     public WaypointUpdateResponse updateWaypoint(@Login Long memberId,
-        @PathVariable Long waypointId, WaypointUpdateRequest request) {
+        @PathVariable Long waypointId, @RequestBody WaypointUpdateRequest request) {
         return waypointService.updateWaypoint(memberId, waypointId, request);
     }
 

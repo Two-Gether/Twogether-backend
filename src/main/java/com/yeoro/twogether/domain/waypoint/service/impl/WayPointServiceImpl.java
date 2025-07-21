@@ -38,7 +38,7 @@ public class WayPointServiceImpl implements WaypointService {
     @Override
     @Transactional
     public WaypointCreateResponse createWaypoint(Long memberId, WaypointCreateRequest request) {
-        Member member = memberService.getMemberByMemberId(memberId);
+        Member member = memberService.getCurrentMember(memberId);
         Waypoint waypoint = Waypoint.builder()
             .name(request.name())
             .member(member)
@@ -91,7 +91,7 @@ public class WayPointServiceImpl implements WaypointService {
     private Waypoint validateAndGetWaypoint(Long memberId, Long waypointId) {
         Waypoint waypoint = waypointRepository.findById(waypointId)
             .orElseThrow(() -> new ServiceException(WAYPOINT_NOT_FOUND));
-        Member member = memberService.getMemberByMemberId(memberId);
+        Member member = memberService.getCurrentMember(memberId);
         waypoint.validateMemberOwnsWaypoint(member);
         return waypoint;
     }
