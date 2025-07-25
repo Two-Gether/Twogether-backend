@@ -1,11 +1,11 @@
 package com.yeoro.twogether.domain.member.service;
 
-import com.yeoro.twogether.domain.member.dto.LoginResponse;
+import com.yeoro.twogether.domain.member.dto.OauthProfile;
+import com.yeoro.twogether.domain.member.dto.response.LoginResponse;
 import com.yeoro.twogether.domain.member.entity.LoginPlatform;
 import com.yeoro.twogether.domain.member.entity.Member;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 
 /**
  * 사용자 서비스
@@ -26,8 +26,7 @@ public interface MemberService {
     /**
      * 소셜(OAuth) 회원가입 처리 이메일은 선택적 정보 (nullable)
      */
-    Long signupByOauth(String email, String nickname, String profileImage,
-        LoginPlatform loginPlatform, String platformId, String encodedPassword);
+    Long signupByOauth(OauthProfile profile, LoginPlatform loginPlatform, String encodedPassword);
 
     /**
      * 플랫폼 ID 존재 여부 확인
@@ -52,27 +51,30 @@ public interface MemberService {
     /**
      * 파트너 연결 코드 생성
      */
-    String generatePartnerCode(Long memberId, HttpSession session);
+    String generatePartnerCode(Long memberId);
 
     /**
      * 파트너 연결 처리
      */
     LoginResponse connectPartner(Long requesterId, String inputCode,
-        HttpSession session,
         HttpServletRequest request,
         HttpServletResponse response);
 
     /**
      * 플랫폼 ID 기준으로 회원 존재 시 ID 반환, 없으면 신규 가입 후 ID 반환
      */
-    Long findOrCreateMember(String email, String nickname, String profileImage,
-        LoginPlatform loginPlatform, String platformId, String encodedPassword);
+    Long findOrCreateMember(OauthProfile profile, LoginPlatform loginPlatform, String encodedPassword);
 
     /**
      * 카카오 로그인 처리 OAuth 프로필 조회 → 회원 조회/가입 → JWT 발급 및 클라이언트 전달 → 응답 DTO 반환
      */
     LoginResponse kakaoLogin(String accessToken, HttpServletRequest request,
         HttpServletResponse response);
+
+    /**
+     * 로그아웃
+     */
+    void logout(Long memberId, String accessToken);
 
     /**
      * 현재 로그인한 사용자 정보 조회 @Login에서 사용자 식별 후 Member 엔티티 반환

@@ -1,9 +1,8 @@
 package com.yeoro.twogether.domain.member.service.Impl;
 
-import static com.yeoro.twogether.global.exception.ErrorCode.MEMBER_NOT_FOUND;
-
-import com.yeoro.twogether.domain.member.dto.LoginResponse;
 import com.yeoro.twogether.domain.member.dto.OauthProfile;
+import com.yeoro.twogether.domain.member.dto.response.LoginResponse;
+import com.yeoro.twogether.domain.member.entity.Gender;
 import com.yeoro.twogether.domain.member.entity.LoginPlatform;
 import com.yeoro.twogether.domain.member.entity.Member;
 import com.yeoro.twogether.domain.member.repository.MemberRepository;
@@ -12,17 +11,19 @@ import com.yeoro.twogether.domain.member.service.MemberService;
 import com.yeoro.twogether.domain.member.service.OauthService;
 import com.yeoro.twogether.global.exception.ErrorCode;
 import com.yeoro.twogether.global.exception.ServiceException;
-import com.yeoro.twogether.global.token.JwtService;
+import com.yeoro.twogether.global.store.PartnerCodeStore;
 import com.yeoro.twogether.global.token.TokenPair;
 import com.yeoro.twogether.global.token.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
+
+import static com.yeoro.twogether.global.exception.ErrorCode.MEMBER_NOT_FOUND;
 
 @Service
 @RequiredArgsConstructor
@@ -32,8 +33,8 @@ public class MemberServiceImpl implements MemberService {
     private final MemberRepository memberRepository;
     private final OauthService oauthService;
     private final TokenService tokenService;
-    private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
+    private final PartnerCodeStore partnerCodeStore;
 
 
     /**
@@ -59,16 +60,25 @@ public class MemberServiceImpl implements MemberService {
      */
     @Override
     @Transactional
-    public Long signupByOauth(String email, String nickname, String profileImage,
-        LoginPlatform loginPlatform, String platformId, String encodedPassword) {
+    public Long signupByOauth(OauthProfile profile, LoginPlatform loginPlatform, String encodedPassword) {
+        // 이미 존재하면 해당 회원 ID 반환
+        if (isExistPlatformId(profile.getPlatformId())) {
+            return getMemberIdByPlatformId(profile.getPlatformId());
+        }
+
+        // 신규 회원 가입
         Member newMember = Member.builder()
-            .email(email)
-            .nickname(nickname)
-            .profileImageUrl(profileImage)
-            .loginPlatform(loginPlatform)
-            .platformId(platformId)
-            .password(encodedPassword)
-            .build();
+                .email(profile.getEmail())
+                .nickname(profile.getNickname())
+                .profileImageUrl(profile.getProfileImageUrl())
+                .loginPlatform(loginPlatform)
+                .platformId(profile.getPlatformId())
+                .password(encodedPassword)
+                .phoneNumber(profile.getPhoneNumber())
+                .birthday(profile.getBirthday())
+                .gender(Gender.from(profile.getGender()))
+                .ageRange(profile.getAgeRange())
+                .build();
 
         return memberRepository.save(newMember).getId();
     }
@@ -117,10 +127,19 @@ public class MemberServiceImpl implements MemberService {
      */
     @Override
     @Transactional
-    public String generatePartnerCode(Long memberId, HttpSession session) {
-        String code = CodeGenerator.generatePartnerCode();
-        session.setAttribute("PARTNER_CODE_" + code, memberId);
-        session.setMaxInactiveInterval(180); // 3분
+    public String generatePartnerCode(Long memberId) {
+        String code;
+        int maxRetry = 5;
+
+        int attempt = 0;
+        do {
+            if (attempt++ >= maxRetry) {
+                throw new ServiceException(ErrorCode.CODE_GENERATION_FAILED);
+            }
+            code = CodeGenerator.generatePartnerCode(); // 이건 그대로
+        } while (partnerCodeStore.exists(code)); // Redis 중복 확인
+
+        partnerCodeStore.save(code, memberId); // TTL 3분
         return code;
     }
 
@@ -130,10 +149,9 @@ public class MemberServiceImpl implements MemberService {
     @Override
     @Transactional
     public LoginResponse connectPartner(Long requesterId, String inputCode,
-        HttpSession session,
         HttpServletRequest request,
         HttpServletResponse response) {
-        Long partnerId = (Long) session.getAttribute("PARTNER_CODE_" + inputCode);
+        Long partnerId = partnerCodeStore.consume(inputCode);
         if (partnerId == null) {
             throw new ServiceException(ErrorCode.PARTNER_CODE_INVALID);
         }
@@ -142,22 +160,15 @@ public class MemberServiceImpl implements MemberService {
         }
 
         Member requester = memberRepository.findById(requesterId)
-            .orElseThrow(() -> new ServiceException(MEMBER_NOT_FOUND));
+                .orElseThrow(() -> new ServiceException(MEMBER_NOT_FOUND));
         Member partner = memberRepository.findById(partnerId)
-            .orElseThrow(() -> new ServiceException(MEMBER_NOT_FOUND));
+                .orElseThrow(() -> new ServiceException(MEMBER_NOT_FOUND));
 
         requester.connectPartner(partner);
         partner.connectPartner(requester);
 
         memberRepository.save(requester);
         memberRepository.save(partner);
-
-        // 모든 파트너 관련 세션 데이터 삭제
-        if (session != null) {
-            session.removeAttribute("PARTNER_CODE_" + inputCode);
-            session.removeAttribute("partnerCode");
-            session.removeAttribute("partnerCodeOwnerId");
-        }
 
         // 파트너 연결 완료 후 JWT 갱신 및 LoginResponse 반환
         return createLoginResponse(requesterId, request, response);
@@ -169,13 +180,11 @@ public class MemberServiceImpl implements MemberService {
      */
     @Override
     @Transactional
-    public Long findOrCreateMember(String email, String nickname, String profileImage,
-        LoginPlatform loginPlatform, String platformId, String encodedPassword) {
-        if (isExistPlatformId(platformId)) {
-            return getMemberIdByPlatformId(platformId);
+    public Long findOrCreateMember(OauthProfile profile, LoginPlatform loginPlatform, String encodedPassword) {
+        if (isExistPlatformId(profile.getPlatformId())) {
+            return getMemberIdByPlatformId(profile.getPlatformId());
         }
-        return signupByOauth(email, nickname, profileImage, loginPlatform, platformId,
-            encodedPassword);
+        return signupByOauth(profile, loginPlatform, encodedPassword);
     }
 
     /**
@@ -261,17 +270,11 @@ public class MemberServiceImpl implements MemberService {
     @Override
     @Transactional
     public LoginResponse kakaoLogin(String accessToken, HttpServletRequest request,
-        HttpServletResponse response) {
+                                    HttpServletResponse response) {
         OauthProfile profile = oauthService.getUserProfile(accessToken);
-
-        String email = profile.getEmail();
-        String nickname = profile.getNickname();
-        String platformId = profile.getPlatformId();
-        String profileImage = profile.getProfileImageUrl();
         String dummyPassword = oauthService.encodePassword(UUID.randomUUID().toString());
 
-        Long memberId = findOrCreateMember(email, nickname, profileImage, LoginPlatform.KAKAO,
-            platformId, dummyPassword);
+        Long memberId = signupByOauth(profile, LoginPlatform.KAKAO, dummyPassword);
 
         return createLoginResponse(memberId, request, response);
     }
@@ -293,5 +296,19 @@ public class MemberServiceImpl implements MemberService {
 
         return LoginResponse.of(tokenPair.getAccessToken(), memberId, userNickname, partnerId,
             partnerNickname);
+    }
+
+    /**
+     * 로그아웃 처리
+     * - Redis에서 Refresh Token 제거
+     */
+    @Override
+    @Transactional
+    public void logout(Long memberId, String accessToken) {
+        // Refresh Token 삭제
+        tokenService.removeRefreshTokenFromRedis(memberId);
+
+        // Access Token 블랙리스트 등록
+        tokenService.blacklistAccessToken(accessToken);
     }
 }
