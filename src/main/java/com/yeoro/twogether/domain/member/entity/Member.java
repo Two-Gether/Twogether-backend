@@ -35,6 +35,19 @@ public class Member extends BaseTime {
     @Column(unique = true)
     private String platformId; // 플랫폼별 고유 ID (ex: 카카오 ID)
 
+    @Column(nullable = true, unique = true)
+    private String phoneNumber;
+
+    @Column
+    private String birthday; // 예: "2000-01-01"
+
+    @Enumerated(EnumType.STRING)
+    @Column
+    private Gender gender;
+
+    @Column
+    private String ageRange; // 예: "20"
+
     @OneToOne
     @JoinColumn(name = "partner_id")
     private Member partner;
@@ -68,20 +81,26 @@ public class Member extends BaseTime {
 
 
     @Builder
-    public Member(
-            String platformId,
-            String email,
-            String password,
-            String nickname,
-            String profileImageUrl,
-            LoginPlatform loginPlatform
-    ) {
+    public Member(String platformId,
+                  String email,
+                  String password,
+                  String nickname,
+                  String profileImageUrl,
+                  LoginPlatform loginPlatform,
+                  String phoneNumber,
+                  String birthday,
+                  Gender gender,
+                  String ageRange) {
         this.platformId = platformId;
         this.email = email;
         this.password = password;
         this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
         this.loginPlatform = loginPlatform;
+        this.phoneNumber = phoneNumber;
+        this.birthday = birthday;
+        this.gender = gender;
+        this.ageRange = ageRange;
     }
 
 }
