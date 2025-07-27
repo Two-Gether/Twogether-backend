@@ -1,21 +1,17 @@
-package com.yeoro.twogether.domain.member.dto;
+package com.yeoro.twogether.domain.member.dto.response;
 
 import com.yeoro.twogether.domain.member.entity.Member;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 
 /**
  * 사용자 정보 응답 DTO
  */
-@Getter
-@AllArgsConstructor
-public class MemberInfoResponse {
-    private Long memberId;
-    private String email;
-    private String nickname;
-    private String profileImageUrl;
-    private String partnerNickname;
-
+public record MemberInfoResponse(
+        Long memberId,
+        String email,
+        String nickname,
+        String profileImageUrl,
+        String partnerNickname
+) {
     /**
      * Member 엔티티를 응답 DTO로 변환하는 팩토리 메서드
      *

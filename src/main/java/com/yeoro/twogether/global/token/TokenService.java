@@ -3,16 +3,17 @@ package com.yeoro.twogether.global.token;
 import com.yeoro.twogether.global.exception.ServiceException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import static com.yeoro.twogether.global.exception.ErrorCode.TOKEN_SEND_ERROR;
 
@@ -28,7 +29,9 @@ public class TokenService {
     @Value("${jwt.refresh_expiration}")
     private Long refreshExpiration;
 
+
     private final JwtService jwtService;
+    private final RedisTemplate<String, String> redisTemplate;
 
     /**
      * Token 쌍 생성
@@ -66,7 +69,7 @@ public class TokenService {
             jwtService.setRefreshTokenCookie(tokenPair.getRefreshToken(), response);
 
             // 3. RefreshToken → 세션
-            storeRefreshTokenInSession(request, memberId, tokenPair.getRefreshToken());
+            storeRefreshTokenInRedis(memberId, tokenPair.getRefreshToken());
 
             // 4. JSON 바디 응답
             Map<String, Object> responseBody = new HashMap<>();
@@ -87,30 +90,35 @@ public class TokenService {
 
 
     /**
-     * 세션에 RefreshToken 저장
+     * Redis에 RefreshToken 저장
      */
-    public void storeRefreshTokenInSession(HttpServletRequest request, Long memberId, String refreshToken) {
-        String key = "refreshToken:" + memberId;
-        request.getSession(true).setAttribute(key, refreshToken);
+    public void storeRefreshTokenInRedis(Long memberId, String refreshToken) {
+        String key = "refresh:" + memberId;
+        redisTemplate.opsForValue().set(key, refreshToken, refreshExpiration, TimeUnit.MILLISECONDS);
+    }
+
+
+    /**
+     * Redis에서 RefreshToken 조회
+     */
+    public Optional<String> getRefreshTokenFromRedis(Long memberId) {
+        String key = "refresh:" + memberId;
+        return Optional.ofNullable(redisTemplate.opsForValue().get(key));
     }
 
     /**
-     * 세션에서 RefreshToken 조회
+     * Redis에서 RefreshToken 제거
      */
-    public Optional<String> getRefreshTokenFromSession(HttpServletRequest request, Long memberId) {
-        HttpSession session = request.getSession(false);
-        if (session == null) return Optional.empty();
-        Object token = session.getAttribute("refreshToken:" + memberId);
-        return Optional.ofNullable(token).map(String::valueOf);
+    public void removeRefreshTokenFromRedis(Long memberId) {
+        String key = "refresh:" + memberId;
+        redisTemplate.delete(key);
     }
 
-    /**
-     * 세션에서 RefreshToken 제거
-     */
-    public void removeRefreshTokenFromSession(HttpServletRequest request, Long memberId) {
-        HttpSession session = request.getSession(false);
-        if (session != null) {
-            session.removeAttribute("refreshToken:" + memberId);
+    public void blacklistAccessToken(String accessToken) {
+        long remainingTime = jwtService.getRemainingTime(accessToken);
+        if (remainingTime > 0) {
+            String key = "blacklist:" + accessToken;
+            redisTemplate.opsForValue().set(key, "logout", remainingTime, TimeUnit.MILLISECONDS);
         }
     }
 }

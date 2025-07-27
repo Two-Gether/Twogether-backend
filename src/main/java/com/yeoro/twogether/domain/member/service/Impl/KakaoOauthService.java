@@ -83,11 +83,18 @@ public class KakaoOauthService implements OauthService {
      * KakaoProfile → 공통 OauthProfile DTO 변환
      */
     private OauthProfile convertToOauthProfile(KakaoProfile kakaoProfile) {
+        KakaoProfile.KakaoAccount account = kakaoProfile.getKakaoAccount();
+        KakaoProfile.Profile kakaoProfileInfo = account.getProfile();
+
         OauthProfile profile = new OauthProfile();
-        profile.setEmail(kakaoProfile.getKakaoAccount().getEmail());
-        profile.setNickname(kakaoProfile.getKakaoAccount().getProfile().getNickname());
+        profile.setEmail(account.getEmail());
+        profile.setPhoneNumber(account.getPhoneNumber());
+        profile.setNickname(kakaoProfileInfo.getNickname());
+        profile.setProfileImageUrl(kakaoProfileInfo.getProfileImageUrl());
         profile.setPlatformId(String.valueOf(kakaoProfile.getId()));
-        profile.setProfileImageUrl(null); // 필요시 설정
+        profile.setBirthday(account.getBirthday());
+        profile.setGender(account.getGender());
+        profile.setAgeRange(account.getAgeRange());
 
         return profile;
     }

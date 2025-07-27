@@ -91,4 +91,18 @@ public class JwtService {
         return null;
     }
 
+    /**
+     * JWT의 남은 유효시간(ms)을 계산하여 반환
+     * 만료된 토큰이면 예외 발생 대신 0을 반환
+     */
+    public long getRemainingTime(String token) {
+        try {
+            Claims claims = parseAndValidateToken(token);
+            Date expiration = claims.getExpiration();
+            return Math.max(0, expiration.getTime() - System.currentTimeMillis());
+        } catch (ServiceException e) {
+            return 0; // 유효하지 않은 토큰은 블랙리스트 처리 대상이 아님
+        }
+    }
+
 }

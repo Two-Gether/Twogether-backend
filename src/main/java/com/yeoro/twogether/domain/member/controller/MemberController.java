@@ -1,23 +1,18 @@
 package com.yeoro.twogether.domain.member.controller;
 
-import com.yeoro.twogether.domain.member.dto.KakaoLoginRequest;
-import com.yeoro.twogether.domain.member.dto.LoginResponse;
-import com.yeoro.twogether.domain.member.dto.MemberInfoResponse;
+import com.yeoro.twogether.domain.member.dto.request.KakaoLoginRequest;
+import com.yeoro.twogether.domain.member.dto.response.LoginResponse;
+import com.yeoro.twogether.domain.member.dto.response.MemberInfoResponse;
 import com.yeoro.twogether.domain.member.entity.Member;
 import com.yeoro.twogether.domain.member.service.MemberService;
 import com.yeoro.twogether.global.argumentResolver.Login;
+import com.yeoro.twogether.global.token.JwtService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
@@ -26,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MemberController {
 
     private final MemberService memberService;
+    private final JwtService jwtService;
 
     /**
      * 카카오 OAuth 로그인 API 프론트에서 전달받은 액세스 토큰을 이용해 로그인 처리
@@ -34,28 +30,37 @@ public class MemberController {
     public LoginResponse kakaoLogin(@RequestBody KakaoLoginRequest request,
         HttpServletRequest httpRequest,
         HttpServletResponse httpResponse) {
-        return memberService.kakaoLogin(request.getAccessToken(), httpRequest, httpResponse);
+        return memberService.kakaoLogin(request.accessToken(), httpRequest, httpResponse);
     }
 
     /**
      * 파트너 코드 생성 API
      */
     @PostMapping("/partner/code")
-    public String generatePartnerCode(@RequestParam(name = "memberId") Long memberId,
-        HttpSession session) {
-        return memberService.generatePartnerCode(memberId, session);
+    public String generatePartnerCode(@Login Long memberId) {
+        return memberService.generatePartnerCode(memberId);
     }
 
     /**
      * 파트너 연결 API
      */
     @PostMapping("/partner/connect")
-    public LoginResponse connectPartner(@RequestParam Long requesterId,
+    public LoginResponse connectPartner(@Login Long requesterId,
         @RequestParam String code,
-        HttpSession session,
         HttpServletRequest request,
         HttpServletResponse response) {
-        return memberService.connectPartner(requesterId, code, session, request, response);
+        return memberService.connectPartner(requesterId, code, request, response);
+    }
+
+    /**
+     * 로그아웃
+     */
+    @DeleteMapping("/logout")
+    public ResponseEntity<String> logout(@Login Long memberId, HttpServletRequest request) {
+        // "Bearer ..."에서 accessToken 추출
+        String accessToken = jwtService.resolveToken(request);
+        memberService.logout(memberId, accessToken);
+        return ResponseEntity.ok("로그아웃 되었습니다.");
     }
 
     /**

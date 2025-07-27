@@ -2,6 +2,7 @@ package com.yeoro.twogether.global.filter;
 
 import com.yeoro.twogether.global.argumentResolver.CustomUserDetails;
 import com.yeoro.twogether.global.constant.AppConstants;
+import com.yeoro.twogether.global.exception.ErrorCode;
 import com.yeoro.twogether.global.exception.ServiceException;
 import com.yeoro.twogether.global.token.JwtService;
 import io.jsonwebtoken.Claims;
@@ -9,14 +10,16 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -24,6 +27,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final RedisTemplate<String, String> redisTemplate;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -40,17 +44,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String accessToken = bearer.substring(AppConstants.BEARER_PREFIX.length());
 
         try {
+            // Redis 블랙리스트 조회: 로그아웃된 토큰인지 확인
+            String blacklistKey = "blacklist:" + accessToken;
+            String blacklisted = redisTemplate.opsForValue().get(blacklistKey);
+            if ("logout".equals(blacklisted)) {
+                throw new ServiceException(ErrorCode.ACCESS_TOKEN_BLACKLISTED);
+            }
+
+            // JWT 파싱 및 유효성 검증
             Claims claims = jwtService.parseAndValidateToken(accessToken);
+
+            // memberId 추출 후 CustomUserDetails 생성 → Spring Security 인증 객체 설정
             Long memberId = claims.get("memberId", Long.class);
             UsernamePasswordAuthenticationToken auth =
-                new UsernamePasswordAuthenticationToken(new CustomUserDetails(memberId), null,
-                    List.of());
+                    new UsernamePasswordAuthenticationToken(new CustomUserDetails(memberId), null, List.of());
             SecurityContextHolder.getContext().setAuthentication(auth);
+
         } catch (ServiceException e) {
-            // 토큰 만료, 변조 등 검증 실패 시 로그 출력 후 인증 없이 진행
-            log.warn("Invalid JWT token: {}", e.getMessage());
+            log.warn("Token Error: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
-            log.error("Unexpected error during JWT processing", e);
+            log.error("JWT 처리 중 예상치 못한 오류", e);
         }
 
         filterChain.doFilter(request, response);

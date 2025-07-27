@@ -10,9 +10,12 @@ import lombok.Setter;
 @Getter
 @Setter
 public class OauthProfile {
-
-    private String email;          // 이메일 (nullable)
-    private String nickname;       // 닉네임
-    private String platformId;     // 플랫폼 고유 식별자
-    private String profileImageUrl; // 프로필 이미지 URL (nullable)
+    private String email;
+    private String phoneNumber;         // 추가
+    private String nickname;
+    private String platformId;
+    private String profileImageUrl;
+    private String birthday;           // 선택
+    private String gender;             // 선택
+    private String ageRange;           // 선택
 }

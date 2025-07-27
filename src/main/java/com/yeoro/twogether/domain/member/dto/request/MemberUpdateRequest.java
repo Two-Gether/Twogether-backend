@@ -1,4 +1,4 @@
-package com.yeoro.twogether.domain.member.dto;
+package com.yeoro.twogether.domain.member.dto.request;
 
 import lombok.Getter;
 import lombok.Setter;
