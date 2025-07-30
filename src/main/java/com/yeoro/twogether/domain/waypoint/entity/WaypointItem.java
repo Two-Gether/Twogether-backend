@@ -3,6 +3,7 @@ package com.yeoro.twogether.domain.waypoint.entity;
 import static com.yeoro.twogether.global.exception.ErrorCode.WAYPOINT_ITEM_NOT_MATCHED;
 
 import com.yeoro.twogether.domain.member.entity.Member;
+import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemUpdateRequest;
 import com.yeoro.twogether.global.entity.BaseTime;
 import com.yeoro.twogether.global.exception.ServiceException;
 import jakarta.persistence.Column;
@@ -60,6 +61,10 @@ public class WaypointItem extends BaseTime {
 
     public void updateOrder(int order) {
         this.itemOrder = order;
+    }
+
+    public void update(WaypointItemUpdateRequest request) {
+        this.memo = request.memo();
     }
 
     public void validateBelongsTo(Long waypointId) {

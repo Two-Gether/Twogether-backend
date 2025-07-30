@@ -3,7 +3,9 @@ package com.yeoro.twogether.domain.waypoint.controller;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemAddRequest;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemDeleteRequest;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemReorderRequest;
+import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemUpdateRequest;
 import com.yeoro.twogether.domain.waypoint.dto.response.WaypointItemCreateResponse;
+import com.yeoro.twogether.domain.waypoint.dto.response.WaypointItemUpdateResponse;
 import com.yeoro.twogether.domain.waypoint.service.WaypointItemService;
 import com.yeoro.twogether.global.argumentResolver.Login;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +37,25 @@ public class WaypointItemController {
         @PathVariable Long waypointId, @RequestBody WaypointItemAddRequest waypointItemAddRequest) {
         return waypointItemService.addWaypointItem(memberId, waypointId, waypointItemAddRequest);
     }
+
+    /**
+     * 특정 Waypoint에 속한 WaypointItem의 정보를 수정합니다.
+     *
+     * @param memberId                  로그인된 회원 ID (@Login 커스텀 리졸버 사용)
+     * @param waypointId                Waypoint ID (해당 항목이 속한 경유지 ID)
+     * @param waypointItemId            수정할 WaypointItem ID
+     * @param waypointItemUpdateRequest 수정 요청 정보 (예: 메모 등)
+     * @return 수정된 WaypointItem 정보
+     */
+    @PatchMapping("/{waypointItemId}")
+    public WaypointItemUpdateResponse updateWaypointItem(@Login Long memberId,
+        @PathVariable Long waypointId,
+        @PathVariable Long waypointItemId,
+        @RequestBody WaypointItemUpdateRequest waypointItemUpdateRequest) {
+        return waypointItemService.updateWaypointItem(memberId, waypointId, waypointItemId,
+            waypointItemUpdateRequest);
+    }
+
 
     /**
      * 특정 Waypoint에 속한 WaypointItem들의 순서를 재정렬합니다.

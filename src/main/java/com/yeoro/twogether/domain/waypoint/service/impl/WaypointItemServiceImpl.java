@@ -9,7 +9,9 @@ import com.yeoro.twogether.domain.member.service.MemberService;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemAddRequest;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemDeleteRequest;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemReorderRequest;
+import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemUpdateRequest;
 import com.yeoro.twogether.domain.waypoint.dto.response.WaypointItemCreateResponse;
+import com.yeoro.twogether.domain.waypoint.dto.response.WaypointItemUpdateResponse;
 import com.yeoro.twogether.domain.waypoint.entity.Waypoint;
 import com.yeoro.twogether.domain.waypoint.entity.WaypointItem;
 import com.yeoro.twogether.domain.waypoint.repository.WaypointItemRepository;
@@ -34,9 +36,11 @@ public class WaypointItemServiceImpl implements WaypointItemService {
     private final WaypointRepository waypointRepository;
 
     /**
-     * waypointId와 회원 ID를 기준으로 소유권 검증 후, WaypointItem 생성 요청 정보(name, address, imageUrl)로 새로운
-     * WaypointItem을 생성하고 저장함. 현재 waypoint에 등록된 최대 순서값을 조회해, 그 다음 순서로 설정. 저장 후 생성된 WaypointItem의 ID와
-     * 순서를 반환.
+     * <p>지정된 Waypoint에 새 WaypointItem을 추가합니다.</p>
+     *
+     * <p>회원 ID와 Waypoint ID를 기준으로 소유권을 검증하고,
+     * 요청된 정보(name, address, imageUrl, memo)를 바탕으로 새 WaypointItem을 생성합니다. 현재 Waypoint에 등록된 최대
+     * itemOrder를 조회하여 다음 순서를 지정한 후 저장하고, 생성된 항목의 ID와 순서를 응답합니다.</p>
      */
     @Override
     public WaypointItemCreateResponse addWaypointItem(Long memberId, Long waypointId,
@@ -60,14 +64,15 @@ public class WaypointItemServiceImpl implements WaypointItemService {
     }
 
     /**
-     * waypointId와 회원 ID를 기준으로 소유권 검증 후, 요청받은 orderedIds 순서대로 WaypointItem의 순서를 업데이트함. orderedIds가
-     * 비었거나 null이면 예외를 던짐. orderedIds에 포함된 모든 ID가 실제 데이터에 존재하는지 확인하고, waypointId에 속한 항목인지 검증함. 검증이
-     * 완료되면 각 항목의 순서를 orderedIds 리스트의 인덱스+1 값으로 갱신함.
+     * <p>WaypointItem들의 순서를 재정렬합니다.</p>
+     *
+     * <p>Waypoint ID와 회원 ID 기준으로 소유권을 확인한 후,
+     * 요청된 ID 순서대로 각 WaypointItem의 itemOrder를 업데이트합니다. 순서가 유효하지 않거나, 요청된 항목이 존재하지 않거나 다른 Waypoint에
+     * 속할 경우 예외를 던집니다.</p>
      */
     @Override
     public void reorderWaypointItem(Long memberId, Long waypointId,
         WaypointItemReorderRequest request) {
-        getOwnedWaypoint(memberId, waypointId);
 
         List<Long> orderedIds = request.orderedIds();
         validateOrderedIds(orderedIds);
@@ -88,8 +93,34 @@ public class WaypointItemServiceImpl implements WaypointItemService {
     }
 
     /**
-     * waypointItemIds로 다수의 WaypointItem을 삭제함. 각 항목에 대해 waypoint 소속 여부와 member 소유권을 검증함. 삭제 후, 해당
-     * waypoint의 남아 있는 항목들을 순서대로 다시 itemOrder 재정렬.
+     * <p>특정 WaypointItem의 정보를 수정합니다.</p>
+     *
+     * <p>Waypoint ID와 회원 ID를 기준으로 해당 항목이 주어진 Waypoint에 속하고,
+     * 해당 회원이 소유자인지를 검증한 뒤, 요청된 메모 등의 정보를 반영하여 수정합니다.</p>
+     */
+    @Override
+    public WaypointItemUpdateResponse updateWaypointItem(Long memberId, Long waypointId,
+        Long waypointItemId, WaypointItemUpdateRequest request) {
+
+        Member member = memberService.getCurrentMember(memberId);
+
+        WaypointItem waypointItem = waypointItemRepository.findById(waypointItemId)
+            .orElseThrow(() -> new ServiceException(WAYPOINT_NOT_FOUND));
+
+        waypointItem.validateBelongsTo(waypointId);
+        waypointItem.validateOwnedBy(member);
+
+        waypointItem.update(request);
+        waypointItemRepository.save(waypointItem);
+
+        return new WaypointItemUpdateResponse(waypointItem.getMemo());
+    }
+
+    /**
+     * <p>다수의 WaypointItem을 삭제합니다.</p>
+     *
+     * <p>요청된 ID 리스트에 포함된 각 항목이 실제로 존재하는지,
+     * 요청한 Waypoint에 속해 있는지, 요청자의 소유 항목인지 검증한 후 삭제합니다. 이후 남아 있는 항목들의 itemOrder를 1부터 다시 정렬합니다.</p>
      */
     @Override
     public void deleteWaypointItems(Long memberId, Long waypointId,
