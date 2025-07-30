@@ -7,6 +7,7 @@ import static com.yeoro.twogether.global.exception.ErrorCode.WAYPOINT_NOT_FOUND;
 import com.yeoro.twogether.domain.member.entity.Member;
 import com.yeoro.twogether.domain.member.service.MemberService;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemAddRequest;
+import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemDeleteRequest;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemReorderRequest;
 import com.yeoro.twogether.domain.waypoint.dto.response.WaypointItemCreateResponse;
 import com.yeoro.twogether.domain.waypoint.entity.Waypoint;
@@ -85,6 +86,56 @@ public class WaypointItemServiceImpl implements WaypointItemService {
         waypointItemRepository.saveAll(items);
     }
 
+    /**
+     * waypointItemIds로 다수의 WaypointItem을 삭제함. 각 항목에 대해 waypoint 소속 여부와 member 소유권을 검증함. 삭제 후, 해당
+     * waypoint의 남아 있는 항목들을 순서대로 다시 itemOrder 재정렬.
+     */
+    @Override
+    public void deleteWaypointItems(Long memberId, Long waypointId,
+        WaypointItemDeleteRequest request) {
+        Member member = memberService.getCurrentMember(memberId);
+
+        List<Long> waypointItemIds = request.waypointItemIds();
+        validateWaypointItemIds(waypointItemIds);
+
+        List<WaypointItem> itemsToDelete = waypointItemRepository.findAllById(waypointItemIds);
+
+        if (itemsToDelete.size() != waypointItemIds.size()) {
+            throw new ServiceException(WAYPOINT_ITEM_NOT_MATCHED);
+        }
+
+        validateOwnership(itemsToDelete, waypointId, member);
+
+        waypointItemRepository.deleteAll(itemsToDelete);
+
+        Waypoint waypoint = itemsToDelete.get(0).getWaypoint();
+
+        reorderRemainingItems(waypoint);
+    }
+
+    private Waypoint getOwnedWaypoint(Long memberId, Long waypointId) {
+        Member member = memberService.getCurrentMember(memberId);
+        Waypoint waypoint = waypointRepository.findById(waypointId)
+            .orElseThrow(() -> new ServiceException(WAYPOINT_NOT_FOUND));
+        waypoint.validateMemberOwnsWaypoint(member);
+        return waypoint;
+    }
+
+    // === [Validation Methods] ===
+
+    private void validateWaypointItemIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            throw new ServiceException(WAYPOINT_ITEM_ORDER_INVALID);
+        }
+    }
+
+    private void validateOwnership(List<WaypointItem> items, Long waypointId, Member member) {
+        for (WaypointItem item : items) {
+            item.validateBelongsTo(waypointId);
+            item.validateOwnedBy(member);
+        }
+    }
+
     private void validateOrderedIds(List<Long> orderedIds) {
         if (orderedIds == null || orderedIds.isEmpty()) {
             throw new ServiceException(WAYPOINT_ITEM_ORDER_INVALID);
@@ -103,32 +154,15 @@ public class WaypointItemServiceImpl implements WaypointItemService {
         });
     }
 
-    /**
-     * waypointItemId로 WaypointItem 조회 후 소유권 검증을 수행하고 삭제함. 삭제한 항목의 순서값(deletedOrder) 이후에 있는 모든
-     * WaypointItem들의 순서를 1씩 감소시켜 순서의 빈틈이 없도록 동기화함.
-     */
-    @Override
-    public void deleteWaypointItem(Long memberId, Long waypointId, Long waypointItemId) {
-        Member member = memberService.getCurrentMember(memberId);
-        WaypointItem waypointItem = waypointItemRepository.findById(waypointItemId)
-            .orElseThrow(() -> new ServiceException(WAYPOINT_NOT_FOUND));
+    private void reorderRemainingItems(Waypoint waypoint) {
+        List<WaypointItem> remainingItems = waypointItemRepository.findByWaypointOrderByItemOrderAsc(
+            waypoint);
 
-        waypointItem.validateBelongsTo(waypointId);
-        waypointItem.validateOwnedBy(member);
+        for (int i = 0; i < remainingItems.size(); i++) {
+            remainingItems.get(i).updateOrder(i + 1);
+        }
 
-        Integer deletedOrder = waypointItem.getItemOrder();
-
-        waypointItemRepository.delete(waypointItem);
-
-        waypointItemRepository.decreaseOrderAfter(waypointId, deletedOrder);
-
+        waypointItemRepository.saveAll(remainingItems);
     }
 
-    private Waypoint getOwnedWaypoint(Long memberId, Long waypointId) {
-        Member member = memberService.getCurrentMember(memberId);
-        Waypoint waypoint = waypointRepository.findById(waypointId)
-            .orElseThrow(() -> new ServiceException(WAYPOINT_NOT_FOUND));
-        waypoint.validateMemberOwnsWaypoint(member);
-        return waypoint;
-    }
 }

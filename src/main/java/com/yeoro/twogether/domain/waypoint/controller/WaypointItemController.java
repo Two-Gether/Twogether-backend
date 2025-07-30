@@ -1,6 +1,7 @@
 package com.yeoro.twogether.domain.waypoint.controller;
 
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemAddRequest;
+import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemDeleteRequest;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemReorderRequest;
 import com.yeoro.twogether.domain.waypoint.dto.response.WaypointItemCreateResponse;
 import com.yeoro.twogether.domain.waypoint.service.WaypointItemService;
@@ -50,15 +51,18 @@ public class WaypointItemController {
     }
 
     /**
-     * 특정 Waypoint에 속한 WaypointItem을 삭제합니다.
+     * 특정 Waypoint에 속한 여러 개의 WaypointItem을 삭제합니다.
+     * <p>
+     * 요청 본문에 포함된 WaypointItem ID 리스트에 대해 소유권 및 waypoint 소속 여부를 검증한 뒤, 해당 항목들을 삭제하고 나머지 항목들의 순서를
+     * 재정렬합니다.
      *
-     * @param memberId       로그인된 회원 ID
-     * @param waypointId     Waypoint ID
-     * @param waypointItemId 삭제할 WaypointItem ID
+     * @param memberId                  로그인된 회원 ID (커스텀 리졸버 @Login 이용)
+     * @param waypointId                삭제 대상이 속한 Waypoint ID
+     * @param waypointItemDeleteRequest 삭제할 WaypointItem ID 목록을 담은 요청 객체
      */
-    @DeleteMapping("/{waypointItemId}")
-    public void deleteWaypointItem(@Login Long memberId, @PathVariable Long waypointId,
-        @PathVariable Long waypointItemId) {
-        waypointItemService.deleteWaypointItem(memberId, waypointId, waypointItemId);
+    @DeleteMapping
+    public void deleteWaypointItems(@Login Long memberId, @PathVariable Long waypointId,
+        @RequestBody WaypointItemDeleteRequest waypointItemDeleteRequest) {
+        waypointItemService.deleteWaypointItems(memberId, waypointId, waypointItemDeleteRequest);
     }
 }
