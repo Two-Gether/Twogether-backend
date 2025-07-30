@@ -39,15 +39,19 @@ public class WaypointItemServiceImpl implements WaypointItemService {
             .orElseThrow(() -> new ServiceException(WAYPOINT_NOT_FOUND));
         waypoint.validateMemberOwnsWaypoint(member);
 
+        Long maxOrder = waypointItemRepository.findMaxOrderByWaypointId(waypointId);
+        Long nextOrder = maxOrder + 1;
+
         WaypointItem waypointItem = WaypointItem.builder()
             .name(request.name())
             .address(request.address())
             .imageUrl(request.imageUrl())
             .waypoint(waypoint)
+            .itemOrder(nextOrder)
             .build();
         waypointItemRepository.save(waypointItem);
 
-        return new WaypointItemCreateResponse(waypointItem.getId());
+        return new WaypointItemCreateResponse(waypointItem.getId(), waypointItem.getItemOrder());
     }
 
     /**

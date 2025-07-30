@@ -37,16 +37,21 @@ public class WaypointItem extends BaseTime {
     @Column
     private String imageUrl;
 
+    @Column
+    private Long itemOrder;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "waypoint_id")
     private Waypoint waypoint;
 
     @Builder
-    public WaypointItem(String name, String address, String imageUrl, Waypoint waypoint) {
+    public WaypointItem(String name, String address, String imageUrl, Waypoint waypoint,
+        Long itemOrder) {
         this.name = name;
         this.address = address;
         this.imageUrl = imageUrl;
         this.waypoint = waypoint;
+        this.itemOrder = itemOrder;
     }
 
     public void validateBelongsTo(Long waypointId) {
