@@ -50,6 +50,7 @@ public class WaypointItemServiceImpl implements WaypointItemService {
             .name(request.name())
             .address(request.address())
             .imageUrl(request.imageUrl())
+            .memo(request.memo())
             .waypoint(waypoint)
             .itemOrder(nextOrder)
             .build();

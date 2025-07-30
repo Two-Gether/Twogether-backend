@@ -39,6 +39,7 @@ public class WaypointMapper {
             .name(waypointItem.getName())
             .imageUrl(waypointItem.getImageUrl())
             .order(waypointItem.getItemOrder())
+            .memo(waypointItem.getMemo())
             .build();
     }
 
