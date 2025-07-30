@@ -125,24 +125,28 @@ public class WaypointItemServiceImpl implements WaypointItemService {
     @Override
     public void deleteWaypointItems(Long memberId, Long waypointId,
         WaypointItemDeleteRequest request) {
-        Member member = memberService.getCurrentMember(memberId);
 
-        List<Long> waypointItemIds = request.waypointItemIds();
+        Member member = memberService.getCurrentMember(memberId);
+        List<WaypointItem> itemsToDelete = getValidatedItemsToDelete(
+            request.waypointItemIds(), waypointId, member
+        );
+
+        waypointItemRepository.deleteAll(itemsToDelete);
+        reorderRemainingItems(itemsToDelete.get(0).getWaypoint());
+    }
+    
+    private List<WaypointItem> getValidatedItemsToDelete(
+        List<Long> waypointItemIds, Long waypointId, Member member) {
+
         validateWaypointItemIds(waypointItemIds);
 
-        List<WaypointItem> itemsToDelete = waypointItemRepository.findAllById(waypointItemIds);
-
-        if (itemsToDelete.size() != waypointItemIds.size()) {
+        List<WaypointItem> items = waypointItemRepository.findAllById(waypointItemIds);
+        if (items.size() != waypointItemIds.size()) {
             throw new ServiceException(WAYPOINT_ITEM_NOT_MATCHED);
         }
 
-        validateOwnership(itemsToDelete, waypointId, member);
-
-        waypointItemRepository.deleteAll(itemsToDelete);
-
-        Waypoint waypoint = itemsToDelete.get(0).getWaypoint();
-
-        reorderRemainingItems(waypoint);
+        validateOwnership(items, waypointId, member);
+        return items;
     }
 
     private Waypoint getOwnedWaypoint(Long memberId, Long waypointId) {
@@ -151,6 +155,17 @@ public class WaypointItemServiceImpl implements WaypointItemService {
             .orElseThrow(() -> new ServiceException(WAYPOINT_NOT_FOUND));
         waypoint.validateMemberOwnsWaypoint(member);
         return waypoint;
+    }
+
+    private void reorderRemainingItems(Waypoint waypoint) {
+        List<WaypointItem> remainingItems = waypointItemRepository.findByWaypointOrderByItemOrderAsc(
+            waypoint);
+
+        for (int i = 0; i < remainingItems.size(); i++) {
+            remainingItems.get(i).updateOrder(i + 1);
+        }
+
+        waypointItemRepository.saveAll(remainingItems);
     }
 
     // === [Validation Methods] ===
@@ -184,17 +199,6 @@ public class WaypointItemServiceImpl implements WaypointItemService {
                 throw new ServiceException(WAYPOINT_ITEM_NOT_MATCHED);
             }
         });
-    }
-
-    private void reorderRemainingItems(Waypoint waypoint) {
-        List<WaypointItem> remainingItems = waypointItemRepository.findByWaypointOrderByItemOrderAsc(
-            waypoint);
-
-        for (int i = 0; i < remainingItems.size(); i++) {
-            remainingItems.get(i).updateOrder(i + 1);
-        }
-
-        waypointItemRepository.saveAll(remainingItems);
     }
 
 }
