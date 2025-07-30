@@ -1,10 +1,13 @@
 package com.yeoro.twogether.domain.waypoint.service.impl;
 
+import static com.yeoro.twogether.global.exception.ErrorCode.WAYPOINT_ITEM_NOT_MATCHED;
+import static com.yeoro.twogether.global.exception.ErrorCode.WAYPOINT_ITEM_ORDER_INVALID;
 import static com.yeoro.twogether.global.exception.ErrorCode.WAYPOINT_NOT_FOUND;
 
 import com.yeoro.twogether.domain.member.entity.Member;
 import com.yeoro.twogether.domain.member.service.MemberService;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemAddRequest;
+import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemReorderRequest;
 import com.yeoro.twogether.domain.waypoint.dto.response.WaypointItemCreateResponse;
 import com.yeoro.twogether.domain.waypoint.entity.Waypoint;
 import com.yeoro.twogether.domain.waypoint.entity.WaypointItem;
@@ -12,6 +15,9 @@ import com.yeoro.twogether.domain.waypoint.repository.WaypointItemRepository;
 import com.yeoro.twogether.domain.waypoint.repository.WaypointRepository;
 import com.yeoro.twogether.domain.waypoint.service.WaypointItemService;
 import com.yeoro.twogether.global.exception.ServiceException;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,20 +33,17 @@ public class WaypointItemServiceImpl implements WaypointItemService {
     private final WaypointRepository waypointRepository;
 
     /**
-     * <p>Long waypointId, String name, String address, String imageUrl 기반으로 waypointItem 생성</p>
-     * <p>저장 후 생성된 waypointItemId 반환</p>
-     * 존재하지 않으면 ServiceException 발생
+     * waypointId와 회원 ID를 기준으로 소유권 검증 후, WaypointItem 생성 요청 정보(name, address, imageUrl)로 새로운
+     * WaypointItem을 생성하고 저장함. 현재 waypoint에 등록된 최대 순서값을 조회해, 그 다음 순서로 설정. 저장 후 생성된 WaypointItem의 ID와
+     * 순서를 반환.
      */
     @Override
     public WaypointItemCreateResponse addWaypointItem(Long memberId, Long waypointId,
         WaypointItemAddRequest request) {
-        Member member = memberService.getCurrentMember(memberId);
-        Waypoint waypoint = waypointRepository.findById(waypointId)
-            .orElseThrow(() -> new ServiceException(WAYPOINT_NOT_FOUND));
-        waypoint.validateMemberOwnsWaypoint(member);
+        Waypoint waypoint = getOwnedWaypoint(memberId, waypointId);
 
-        Long maxOrder = waypointItemRepository.findMaxOrderByWaypointId(waypointId);
-        Long nextOrder = maxOrder + 1;
+        int maxOrder = waypointItemRepository.findMaxOrderByWaypointId(waypointId);
+        int nextOrder = maxOrder + 1;
 
         WaypointItem waypointItem = WaypointItem.builder()
             .name(request.name())
@@ -55,8 +58,54 @@ public class WaypointItemServiceImpl implements WaypointItemService {
     }
 
     /**
-     * <p>waypointItemId 기반으로 waypointItem 삭제</p>
-     * 존재하지 않으면 ServiceException 발생
+     * waypointId와 회원 ID를 기준으로 소유권 검증 후, 요청받은 orderedIds 순서대로 WaypointItem의 순서를 업데이트함. orderedIds가
+     * 비었거나 null이면 예외를 던짐. orderedIds에 포함된 모든 ID가 실제 데이터에 존재하는지 확인하고, waypointId에 속한 항목인지 검증함. 검증이
+     * 완료되면 각 항목의 순서를 orderedIds 리스트의 인덱스+1 값으로 갱신함.
+     */
+    @Override
+    public void reorderWaypointItem(Long memberId, Long waypointId,
+        WaypointItemReorderRequest request) {
+        getOwnedWaypoint(memberId, waypointId);
+
+        List<Long> orderedIds = request.orderedIds();
+        validateOrderedIds(orderedIds);
+
+        List<WaypointItem> items = waypointItemRepository.findAllById(orderedIds);
+        validateItems(orderedIds, items, waypointId);
+
+        Map<Long, WaypointItem> itemMap = items.stream()
+            .collect(Collectors.toMap(WaypointItem::getId, item -> item));
+
+        for (int i = 0; i < orderedIds.size(); i++) {
+            Long id = orderedIds.get(i);
+            WaypointItem item = itemMap.get(id);
+            item.updateOrder(i + 1);
+        }
+
+        waypointItemRepository.saveAll(items);
+    }
+
+    private void validateOrderedIds(List<Long> orderedIds) {
+        if (orderedIds == null || orderedIds.isEmpty()) {
+            throw new ServiceException(WAYPOINT_ITEM_ORDER_INVALID);
+        }
+    }
+
+    private void validateItems(List<Long> orderedIds, List<WaypointItem> items, Long waypointId) {
+        if (items.size() != orderedIds.size()) {
+            throw new ServiceException(WAYPOINT_ITEM_NOT_MATCHED);
+        }
+
+        items.forEach(item -> {
+            if (!item.getWaypoint().getId().equals(waypointId)) {
+                throw new ServiceException(WAYPOINT_ITEM_NOT_MATCHED);
+            }
+        });
+    }
+
+    /**
+     * waypointItemId로 WaypointItem 조회 후 소유권 검증을 수행하고 삭제함. 삭제한 항목의 순서값(deletedOrder) 이후에 있는 모든
+     * WaypointItem들의 순서를 1씩 감소시켜 순서의 빈틈이 없도록 동기화함.
      */
     @Override
     public void deleteWaypointItem(Long memberId, Long waypointId, Long waypointItemId) {
@@ -67,6 +116,19 @@ public class WaypointItemServiceImpl implements WaypointItemService {
         waypointItem.validateBelongsTo(waypointId);
         waypointItem.validateOwnedBy(member);
 
+        Integer deletedOrder = waypointItem.getItemOrder();
+
         waypointItemRepository.delete(waypointItem);
+
+        waypointItemRepository.decreaseOrderAfter(waypointId, deletedOrder);
+
+    }
+
+    private Waypoint getOwnedWaypoint(Long memberId, Long waypointId) {
+        Member member = memberService.getCurrentMember(memberId);
+        Waypoint waypoint = waypointRepository.findById(waypointId)
+            .orElseThrow(() -> new ServiceException(WAYPOINT_NOT_FOUND));
+        waypoint.validateMemberOwnsWaypoint(member);
+        return waypoint;
     }
 }

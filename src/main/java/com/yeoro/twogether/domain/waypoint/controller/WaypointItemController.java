@@ -1,11 +1,13 @@
 package com.yeoro.twogether.domain.waypoint.controller;
 
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemAddRequest;
+import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemReorderRequest;
 import com.yeoro.twogether.domain.waypoint.dto.response.WaypointItemCreateResponse;
 import com.yeoro.twogether.domain.waypoint.service.WaypointItemService;
 import com.yeoro.twogether.global.argumentResolver.Login;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,6 +33,20 @@ public class WaypointItemController {
     public WaypointItemCreateResponse addWaypointItem(@Login Long memberId,
         @PathVariable Long waypointId, @RequestBody WaypointItemAddRequest waypointItemAddRequest) {
         return waypointItemService.addWaypointItem(memberId, waypointId, waypointItemAddRequest);
+    }
+
+    /**
+     * 특정 Waypoint에 속한 WaypointItem들의 순서를 재정렬합니다.
+     *
+     * @param memberId                   로그인된 회원 ID (커스텀 리졸버 @Login 이용)
+     * @param waypointId                 Waypoint ID
+     * @param waypointItemReorderRequest 재정렬할 WaypointItem ID 리스트를 포함한 요청 객체
+     */
+    @PatchMapping
+    public void reorderWaypointItems(@Login Long memberId,
+        @PathVariable Long waypointId,
+        @RequestBody WaypointItemReorderRequest waypointItemReorderRequest) {
+        waypointItemService.reorderWaypointItem(memberId, waypointId, waypointItemReorderRequest);
     }
 
     /**
