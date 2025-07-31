@@ -7,6 +7,7 @@ import static com.yeoro.twogether.global.exception.ErrorCode.WAYPOINT_NOT_FOUND;
 import com.yeoro.twogether.domain.member.entity.Member;
 import com.yeoro.twogether.domain.member.service.MemberService;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemAddRequest;
+import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemCopyRequest;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemDeleteRequest;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemReorderRequest;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemUpdateRequest;
@@ -18,6 +19,7 @@ import com.yeoro.twogether.domain.waypoint.repository.WaypointItemRepository;
 import com.yeoro.twogether.domain.waypoint.repository.WaypointRepository;
 import com.yeoro.twogether.domain.waypoint.service.WaypointItemService;
 import com.yeoro.twogether.global.exception.ServiceException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -117,6 +119,42 @@ public class WaypointItemServiceImpl implements WaypointItemService {
     }
 
     /**
+     * <p>WaypointItem들을 복사하여 다른 Waypoint에 붙여넣습니다.</p>
+     *
+     * <p>복사 대상이 되는 WaypointItem ID 리스트가 요청에 포함되어 있으며,
+     * 이 항목들이 실제 존재하고, source Waypoint에 속하며, 해당 멤버가 소유하고 있는지 확인합니다. 그런 다음 targetWaypoint에 대해 소유권 검사를
+     * 거친 후, 해당 WaypointItem들을 복제하여 targetWaypoint에 저장합니다. 순서는 기존 항목들의 maxOrder 이후부터 지정됩니다.</p>
+     */
+    @Override
+    public void copyWaypointItems(Long memberId, Long waypointId, Long targetWaypointId,
+        WaypointItemCopyRequest request) {
+        Member member = memberService.getCurrentMember(memberId);
+
+        List<Long> waypointItemIds = request.waypointItemIds();
+        List<WaypointItem> sourceItems = getValidatedItemsByIds(waypointItemIds, waypointId,
+            member);
+
+        Waypoint targetWaypoint = getOwnedWaypoint(memberId, targetWaypointId);
+
+        List<WaypointItem> copiedItems = new ArrayList<>();
+        int startOrder = waypointItemRepository.findMaxOrderByWaypointId(targetWaypointId) + 1;
+
+        for (WaypointItem item : sourceItems) {
+            WaypointItem copied = WaypointItem.builder()
+                .name(item.getName())
+                .address(item.getAddress())
+                .imageUrl(item.getImageUrl())
+                .memo(item.getMemo())
+                .waypoint(targetWaypoint)
+                .itemOrder(startOrder++)
+                .build();
+
+            copiedItems.add(copied);
+        }
+        waypointItemRepository.saveAll(copiedItems);
+    }
+
+    /**
      * <p>다수의 WaypointItem을 삭제합니다.</p>
      *
      * <p>요청된 ID 리스트에 포함된 각 항목이 실제로 존재하는지,
@@ -125,19 +163,18 @@ public class WaypointItemServiceImpl implements WaypointItemService {
     @Override
     public void deleteWaypointItems(Long memberId, Long waypointId,
         WaypointItemDeleteRequest request) {
-
         Member member = memberService.getCurrentMember(memberId);
-        List<WaypointItem> itemsToDelete = getValidatedItemsToDelete(
-            request.waypointItemIds(), waypointId, member
-        );
+
+        List<Long> waypointItemIds = request.waypointItemIds();
+        List<WaypointItem> itemsToDelete = getValidatedItemsByIds(waypointItemIds, waypointId,
+            member);
 
         waypointItemRepository.deleteAll(itemsToDelete);
         reorderRemainingItems(itemsToDelete.get(0).getWaypoint());
     }
-    
-    private List<WaypointItem> getValidatedItemsToDelete(
-        List<Long> waypointItemIds, Long waypointId, Member member) {
 
+    private List<WaypointItem> getValidatedItemsByIds(List<Long> waypointItemIds, Long waypointId,
+        Member member) {
         validateWaypointItemIds(waypointItemIds);
 
         List<WaypointItem> items = waypointItemRepository.findAllById(waypointItemIds);
