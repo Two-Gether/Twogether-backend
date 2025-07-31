@@ -23,9 +23,31 @@ public class JwtService {
     @Value("${jwt.secret}")
     private String secretKey;
 
+    @Value("${jwt.access_expiration}")
+    private Long accessTokenExpiration;
+
+    @Value("${jwt.refresh_expiration}")
+    private Long refreshTokenExpiration;
+
+    /**
+     * AccessToken 생성
+     */
+    public String createAccessToken(Long memberId) {
+        Map<String, Object> claims = Map.of("memberId", memberId);
+        return createToken(claims, accessTokenExpiration);
+    }
+
+    /**
+     * RefreshToken 생성
+     */
+    public String createRefreshToken(Long memberId) {
+        Map<String, Object> claims = Map.of("memberId", memberId);
+        return createToken(claims, refreshTokenExpiration);
+    }
+
     /**
      * JWT 생성
-     * @param claims 사용자 정보 (memberId, nickname 등)
+     * @param claims 사용자 정보 (memberId 등)
      * @param expiration 만료 시간 (밀리초)
      */
     public String createToken(Map<String, Object> claims, Long expiration) {
@@ -39,7 +61,6 @@ public class JwtService {
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
-
 
     /**
      * JWT 파싱 및 유효성 검증
@@ -60,7 +81,7 @@ public class JwtService {
     }
 
     /**
-     * HttpOnly Refresh Token 쿠키 생성 및 설정
+     * Refresh Token 쿠키 저장
      */
     public void setRefreshTokenCookie(String token, HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN, token)
@@ -68,20 +89,14 @@ public class JwtService {
                 .secure(true)
                 .sameSite("None")
                 .path("/")
+                .maxAge(refreshTokenExpiration / 1000) // 초 단위
                 .build();
 
         response.addHeader("Set-Cookie", cookie.toString());
     }
 
     /**
-     * JWT 서명용 시크릿 키 생성
-     */
-    private SecretKey getSecretKey(String secretKey) {
-        return Keys.hmacShaKeyFor(java.util.HexFormat.of().parseHex(secretKey));
-    }
-
-    /**
-     * HTTP 요청 헤더에서 Bearer 토큰 추출
+     * Bearer 토큰 추출
      */
     public String resolveToken(jakarta.servlet.http.HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
@@ -92,8 +107,14 @@ public class JwtService {
     }
 
     /**
-     * JWT의 남은 유효시간(ms)을 계산하여 반환
-     * 만료된 토큰이면 예외 발생 대신 0을 반환
+     * 시크릿 키 생성
+     */
+    private SecretKey getSecretKey(String secretKey) {
+        return Keys.hmacShaKeyFor(java.util.HexFormat.of().parseHex(secretKey));
+    }
+
+    /**
+     * 남은 토큰 유효 시간(ms)
      */
     public long getRemainingTime(String token) {
         try {
@@ -101,8 +122,7 @@ public class JwtService {
             Date expiration = claims.getExpiration();
             return Math.max(0, expiration.getTime() - System.currentTimeMillis());
         } catch (ServiceException e) {
-            return 0; // 유효하지 않은 토큰은 블랙리스트 처리 대상이 아님
+            return 0;
         }
     }
-
 }
