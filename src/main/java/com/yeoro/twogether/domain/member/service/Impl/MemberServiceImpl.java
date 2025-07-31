@@ -1,19 +1,24 @@
 package com.yeoro.twogether.domain.member.service.Impl;
 
 import com.yeoro.twogether.domain.member.dto.OauthProfile;
+import com.yeoro.twogether.domain.member.dto.request.LoginRequest;
+import com.yeoro.twogether.domain.member.dto.request.SignupRequest;
 import com.yeoro.twogether.domain.member.dto.response.LoginResponse;
 import com.yeoro.twogether.domain.member.entity.Gender;
 import com.yeoro.twogether.domain.member.entity.LoginPlatform;
 import com.yeoro.twogether.domain.member.entity.Member;
 import com.yeoro.twogether.domain.member.repository.MemberRepository;
-import com.yeoro.twogether.domain.member.service.CodeGenerator;
+import com.yeoro.twogether.domain.member.service.EmailVerificationService;
 import com.yeoro.twogether.domain.member.service.MemberService;
 import com.yeoro.twogether.domain.member.service.OauthService;
 import com.yeoro.twogether.global.exception.ErrorCode;
 import com.yeoro.twogether.global.exception.ServiceException;
 import com.yeoro.twogether.global.store.PartnerCodeStore;
+import com.yeoro.twogether.global.token.JwtService;
 import com.yeoro.twogether.global.token.TokenPair;
 import com.yeoro.twogether.global.token.TokenService;
+import com.yeoro.twogether.global.util.CodeGenerator;
+import com.yeoro.twogether.global.util.PasswordValidator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +40,50 @@ public class MemberServiceImpl implements MemberService {
     private final TokenService tokenService;
     private final PasswordEncoder passwordEncoder;
     private final PartnerCodeStore partnerCodeStore;
+    private final EmailVerificationService emailVerificationService;
+    private final JwtService jwtService;
+
+    /**
+     * 일반 회원가입
+     */
+    @Override
+    public LoginResponse signup(SignupRequest request, HttpServletResponse response) {
+        if (memberRepository.existsByEmail(request.email())) {
+            throw new ServiceException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+
+        if (!emailVerificationService.isVerified(request.email())) {
+            throw new ServiceException(ErrorCode.EMAIL_NOT_VERIFIED);
+        }
+
+        if (!PasswordValidator.isValid(request.password())) {
+            throw new ServiceException(ErrorCode.PASSWORD_NOT_VALID);
+        }
+
+        Member member = Member.builder()
+                .email(request.email())
+                .password(passwordEncoder.encode(request.password()))
+                .nickname(request.nickname())
+                .phoneNumber(request.phoneNumber())
+                .birthday(request.birthday())
+                .gender(request.gender())
+                .ageRange(request.ageRange())
+                .loginPlatform(LoginPlatform.LOCAL)
+                .build();
+        memberRepository.save(member);
+        emailVerificationService.clearVerificationInfo(request.email());
+
+        String userNickname = member.getNickname();
+        Long memberId = member.getId();
+        Long partnerId = member.getPartnerId();
+        String partnerNickname = partnerId != null ? member.getPartner().getNickname() : null;
+
+        TokenPair tokenPair = tokenService.createTokenPair(memberId, userNickname, partnerId, partnerNickname);
+        tokenService.sendTokensToClient(null, response, tokenPair, memberId, userNickname, partnerId, partnerNickname);
+
+        return LoginResponse.of(tokenPair.getAccessToken(), memberId, userNickname, partnerId, partnerNickname);
+    }
+
 
 
     /**
@@ -269,34 +318,69 @@ public class MemberServiceImpl implements MemberService {
      */
     @Override
     @Transactional
-    public LoginResponse kakaoLogin(String accessToken, HttpServletRequest request,
-                                    HttpServletResponse response) {
+    public LoginResponse kakaoLogin(String accessToken, HttpServletRequest request, HttpServletResponse response) {
         OauthProfile profile = oauthService.getUserProfile(accessToken);
         String dummyPassword = oauthService.encodePassword(UUID.randomUUID().toString());
 
         Long memberId = signupByOauth(profile, LoginPlatform.KAKAO, dummyPassword);
 
-        return createLoginResponse(memberId, request, response);
+        return createLoginResponse(memberId, request, response); // TokenPair 및 쿠키 포함 처리
     }
 
     /**
      * 중복된 JWT 발급 및 LoginResponse 생성을 처리하는 공통 메서드
      */
     private LoginResponse createLoginResponse(Long memberId,
-        HttpServletRequest request,
-        HttpServletResponse response) {
+                                              HttpServletRequest request,
+                                              HttpServletResponse response) {
         String userNickname = getNicknameByMemberId(memberId);
         Long partnerId = getPartnerId(memberId);
-        String partnerNickname = partnerId != null ? getNicknameByMemberId(partnerId) : null;
+        String partnerNickname = (partnerId != null) ? getNicknameByMemberId(partnerId) : null;
 
-        TokenPair tokenPair = tokenService.createTokenPair(memberId, userNickname, partnerId,
-            partnerNickname);
-        tokenService.sendTokensToClient(request, response, tokenPair, memberId, userNickname,
-            partnerId, partnerNickname);
+        // 토큰 생성
+        TokenPair tokenPair = tokenService.createTokenPair(
+                memberId, userNickname, partnerId, partnerNickname
+        );
 
-        return LoginResponse.of(tokenPair.getAccessToken(), memberId, userNickname, partnerId,
-            partnerNickname);
+        // RefreshToken → Redis 저장 + 쿠키로 전송
+        tokenService.sendTokensToClient(
+                request, response, tokenPair,
+                memberId, userNickname, partnerId, partnerNickname
+        );
+
+        // AccessToken → LoginResponse에 담아서 반환
+        return LoginResponse.of(
+                tokenPair.getAccessToken(),
+                memberId,
+                userNickname,
+                partnerId,
+                partnerNickname
+        );
     }
+
+    /**
+     * 일반 로그인
+     */
+    @Override
+    @Transactional
+    public LoginResponse login(LoginRequest request,
+                               HttpServletRequest httpRequest,
+                               HttpServletResponse httpResponse) {
+        Member member = memberRepository.findByEmail(request.email())
+                .orElseThrow(() -> new ServiceException(ErrorCode.MEMBER_NOT_FOUND));
+
+        // LOCAL 사용자만 가능
+        if (member.getLoginPlatform() != LoginPlatform.LOCAL) {
+            throw new ServiceException(ErrorCode.NOT_LOCAL_MEMBER);
+        }
+
+        if (!passwordEncoder.matches(request.password(), member.getPassword())) {
+            throw new ServiceException(ErrorCode.PASSWORD_NOT_MATCH);
+        }
+
+        return createLoginResponse(member.getId(), httpRequest, httpResponse);
+    }
+
 
     /**
      * 로그아웃 처리

@@ -15,6 +15,9 @@ public enum ErrorCode {
     NOT_LOCAL_MEMBER("403-1", "member.not.local", HttpStatus.FORBIDDEN),
     PASSWORD_NOT_MATCH("400-3", "member.password.not.match", HttpStatus.BAD_REQUEST),
     CODE_GENERATION_FAILED("500-4", "partner.code.generation.failed", HttpStatus.INTERNAL_SERVER_ERROR),
+    EMAIL_NOT_VERIFIED("403-2", "member.email.not.verified", HttpStatus.FORBIDDEN),
+    INVALID_PASSWORD_FORMAT("400-4", "member.password.invalid", HttpStatus.BAD_REQUEST),
+    PASSWORD_NOT_VALID("400-4", "member.password.not.valid", HttpStatus.BAD_REQUEST),
 
     // Partner Errors
     PARTNER_CODE_INVALID("400-1", "partner.code.invalid", HttpStatus.BAD_REQUEST),

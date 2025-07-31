@@ -1,6 +1,8 @@
 package com.yeoro.twogether.domain.member.service;
 
 import com.yeoro.twogether.domain.member.dto.OauthProfile;
+import com.yeoro.twogether.domain.member.dto.request.LoginRequest;
+import com.yeoro.twogether.domain.member.dto.request.SignupRequest;
 import com.yeoro.twogether.domain.member.dto.response.LoginResponse;
 import com.yeoro.twogether.domain.member.entity.LoginPlatform;
 import com.yeoro.twogether.domain.member.entity.Member;
@@ -12,6 +14,16 @@ import jakarta.servlet.http.HttpServletResponse;
  */
 public interface MemberService {
 
+
+    /**
+     * 일반 회원가입
+     */
+    LoginResponse signup(SignupRequest request, HttpServletResponse response);
+
+    /**
+     * 일반 로그인
+     */
+    LoginResponse login(LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse);
 
     /**
      * 로컬(자체) 가입용: 이메일 존재 여부 확인 소셜(OAuth) 가입 시 사용하지 않음
