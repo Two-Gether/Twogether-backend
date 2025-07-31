@@ -1,6 +1,7 @@
 package com.yeoro.twogether.domain.waypoint.controller;
 
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemAddRequest;
+import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemCopyRequest;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemDeleteRequest;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemReorderRequest;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemUpdateRequest;
@@ -56,6 +57,22 @@ public class WaypointItemController {
             waypointItemUpdateRequest);
     }
 
+    /**
+     * 특정 Waypoint에 속한 WaypointItem들을 다른 Waypoint로 복사합니다.
+     *
+     * @param memberId                로그인된 회원 ID (@Login 커스텀 리졸버 사용)
+     * @param waypointId              복사할 원본 Waypoint ID
+     * @param targetWaypointId        붙여넣을 대상 Waypoint ID
+     * @param waypointItemCopyRequest 복사할 WaypointItem ID 목록을 담은 요청 객체
+     */
+    @PostMapping("/copy/{targetWaypointId}")
+    public void copyWaypointItems(@Login Long memberId,
+        @PathVariable Long waypointId,
+        @PathVariable Long targetWaypointId,
+        @RequestBody WaypointItemCopyRequest waypointItemCopyRequest) {
+        waypointItemService.copyWaypointItems(memberId, waypointId, targetWaypointId,
+            waypointItemCopyRequest);
+    }
 
     /**
      * 특정 Waypoint에 속한 WaypointItem들의 순서를 재정렬합니다.
