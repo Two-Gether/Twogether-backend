@@ -3,6 +3,7 @@ package com.yeoro.twogether.domain.waypoint.entity;
 import static com.yeoro.twogether.global.exception.ErrorCode.WAYPOINT_ITEM_NOT_MATCHED;
 
 import com.yeoro.twogether.domain.member.entity.Member;
+import com.yeoro.twogether.domain.waypoint.dto.request.WaypointItemUpdateRequest;
 import com.yeoro.twogether.global.entity.BaseTime;
 import com.yeoro.twogether.global.exception.ServiceException;
 import jakarta.persistence.Column;
@@ -37,16 +38,33 @@ public class WaypointItem extends BaseTime {
     @Column
     private String imageUrl;
 
+    @Column
+    private String memo;
+
+    @Column
+    private int itemOrder;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "waypoint_id")
     private Waypoint waypoint;
 
     @Builder
-    public WaypointItem(String name, String address, String imageUrl, Waypoint waypoint) {
+    public WaypointItem(String name, String address, String imageUrl, Waypoint waypoint,
+        int itemOrder, String memo) {
         this.name = name;
         this.address = address;
         this.imageUrl = imageUrl;
         this.waypoint = waypoint;
+        this.itemOrder = itemOrder;
+        this.memo = memo;
+    }
+
+    public void updateOrder(int order) {
+        this.itemOrder = order;
+    }
+
+    public void update(WaypointItemUpdateRequest request) {
+        this.memo = request.memo();
     }
 
     public void validateBelongsTo(Long waypointId) {

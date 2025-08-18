@@ -36,8 +36,11 @@ public class WaypointMapper {
      */
     private WaypointSummaryResponse toWaypointItemSummaryResponse(WaypointItem waypointItem) {
         return WaypointSummaryResponse.builder()
+            .itemId(waypointItem.getId())
             .name(waypointItem.getName())
             .imageUrl(waypointItem.getImageUrl())
+            .order(waypointItem.getItemOrder())
+            .memo(waypointItem.getMemo())
             .build();
     }
 

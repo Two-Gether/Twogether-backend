@@ -14,7 +14,8 @@ public enum ErrorCode {
     PLATFORM_ID_ALREADY_EXISTS("409-2", "member.platformId.exists", HttpStatus.CONFLICT),
     NOT_LOCAL_MEMBER("403-1", "member.not.local", HttpStatus.FORBIDDEN),
     PASSWORD_NOT_MATCH("400-3", "member.password.not.match", HttpStatus.BAD_REQUEST),
-    CODE_GENERATION_FAILED("500-4", "partner.code.generation.failed", HttpStatus.INTERNAL_SERVER_ERROR),
+    CODE_GENERATION_FAILED("500-4", "partner.code.generation.failed",
+        HttpStatus.INTERNAL_SERVER_ERROR),
     EMAIL_NOT_VERIFIED("403-2", "member.email.not.verified", HttpStatus.FORBIDDEN),
     INVALID_PASSWORD_FORMAT("400-4", "member.password.invalid", HttpStatus.BAD_REQUEST),
     PASSWORD_NOT_VALID("400-4", "member.password.not.valid", HttpStatus.BAD_REQUEST),
@@ -30,7 +31,8 @@ public enum ErrorCode {
 
     // Kakao OAuth Errors
     KAKAO_API_ERROR("500-1", "kakao.api.error", HttpStatus.INTERNAL_SERVER_ERROR),
-    KAKAO_PROFILE_PARSE_FAILED("500-2", "kakao.profile.parse.failed", HttpStatus.INTERNAL_SERVER_ERROR),
+    KAKAO_PROFILE_PARSE_FAILED("500-2", "kakao.profile.parse.failed",
+        HttpStatus.INTERNAL_SERVER_ERROR),
     KAKAO_INVALID_TOKEN("401-3", "kakao.invalid.token", HttpStatus.UNAUTHORIZED),
     ACCESS_TOKEN_BLACKLISTED("401-4", "token.blacklisted", HttpStatus.UNAUTHORIZED),
 
@@ -39,7 +41,9 @@ public enum ErrorCode {
     WAYPOINT_OWNERSHIP_MISMATCH("405-2", "waypoint.ownership.mismatch", HttpStatus.FORBIDDEN),
 
     // WaypointItem Errors
-    WAYPOINT_ITEM_NOT_MATCHED("406-1", "waypoint.item.not.matched", HttpStatus.BAD_REQUEST);
+    WAYPOINT_ITEM_NOT_MATCHED("406-1", "waypoint.item.not.matched", HttpStatus.BAD_REQUEST),
+    WAYPOINT_ITEM_ORDER_INVALID("406-2", "waypoint.item.order.invalid", HttpStatus.BAD_REQUEST);
+
 
     private final String code;
     private final String messageCode; // 메시지 프로퍼티

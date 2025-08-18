@@ -4,8 +4,11 @@ import lombok.Builder;
 
 @Builder
 public record WaypointSummaryResponse(
+    Long itemId,
     String name,
-    String imageUrl
+    String imageUrl,
+    String memo,
+    int order
 ) {
 
 }
