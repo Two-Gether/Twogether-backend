@@ -48,4 +48,18 @@ public class EmailVerificationService {
     public void clearVerificationInfo(String email) {
         redisTemplate.delete(PREFIX + email);
     }
+
+    // 테스트용 데이터 추가를 위한 메서드: 이메일 인증을 건너뛰고 강제로 "인증 완료" 상태
+    public void markVerifiedForInit(String email) {
+        String key = PREFIX + email;
+        redisTemplate.opsForHash().put(key, "isVerified", true);
+
+        // code 필드가 비어 있으면 dummy 값 넣어줌
+        if (redisTemplate.opsForHash().get(key, "code") == null) {
+            redisTemplate.opsForHash().put(key, "code", "INIT");
+        }
+
+        redisTemplate.expire(key, TTL);
+    }
+
 }

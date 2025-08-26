@@ -47,6 +47,7 @@ public class MemberServiceImpl implements MemberService {
      * 일반 회원가입
      */
     @Override
+    @Transactional
     public LoginResponse signup(SignupRequest request, HttpServletResponse response) {
         if (memberRepository.existsByEmail(request.email())) {
             throw new ServiceException(ErrorCode.EMAIL_ALREADY_EXISTS);
