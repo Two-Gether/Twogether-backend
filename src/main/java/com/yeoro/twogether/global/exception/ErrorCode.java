@@ -42,7 +42,13 @@ public enum ErrorCode {
 
     // WaypointItem Errors
     WAYPOINT_ITEM_NOT_MATCHED("406-1", "waypoint.item.not.matched", HttpStatus.BAD_REQUEST),
-    WAYPOINT_ITEM_ORDER_INVALID("406-2", "waypoint.item.order.invalid", HttpStatus.BAD_REQUEST);
+    WAYPOINT_ITEM_ORDER_INVALID("406-2", "waypoint.item.order.invalid", HttpStatus.BAD_REQUEST),
+
+    // Place Errors
+    PLACE_NOT_FOUND("404-10", "place.not.found", HttpStatus.NOT_FOUND),
+    PLACE_ADDRESS_EXISTS("409-10", "place.address.exists", HttpStatus.CONFLICT),
+    PLACE_CREATION_FAILED("500-10", "place.creation.failed", HttpStatus.INTERNAL_SERVER_ERROR),
+    PLACE_TAG_LIMIT_EXCEEDED("400-11", "place.tag.limit.exceeded", HttpStatus.BAD_REQUEST);
 
 
     private final String code;
