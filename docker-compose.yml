@@ -1,6 +1,6 @@
 services:
   twogether-spring:
-    build: .
+    image: jjinbok/capstone-hub:latest
     container_name: twogether-spring
     env_file:
       - .env
