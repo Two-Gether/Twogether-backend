@@ -4,6 +4,7 @@ import com.yeoro.twogether.global.exception.ErrorCode;
 import com.yeoro.twogether.global.exception.ServiceException;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.yeoro.twogether.global.constant.AppConstants.REFRESH_TOKEN;
 
@@ -124,5 +126,15 @@ public class JwtService {
         } catch (ServiceException e) {
             return 0;
         }
+    }
+
+    public Optional<String> getRefreshTokenFromCookie(HttpServletRequest request) {
+        if (request.getCookies() == null) return Optional.empty();
+        for (var c : request.getCookies()) {
+            if (REFRESH_TOKEN.equals(c.getName())) { // REFRESH_TOKEN = "refreshToken"
+                return Optional.ofNullable(c.getValue());
+            }
+        }
+        return Optional.empty();
     }
 }

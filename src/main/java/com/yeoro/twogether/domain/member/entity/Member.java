@@ -7,6 +7,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
+import java.util.Objects;
+
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -22,7 +25,7 @@ public class Member extends BaseTime {
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String nickname;
 
     @Column
@@ -35,7 +38,7 @@ public class Member extends BaseTime {
     @Column(unique = true)
     private String platformId; // 플랫폼별 고유 ID (ex: 카카오 ID)
 
-    @Column(nullable = true, unique = true)
+    @Column(nullable = true)
     private String phoneNumber;
 
     @Column
@@ -51,6 +54,9 @@ public class Member extends BaseTime {
     @OneToOne
     @JoinColumn(name = "partner_id")
     private Member partner;
+
+    @Column(name = "relationship_start_date")
+    private LocalDate relationshipStartDate;
 
     public Long getPartnerId() {
         return partner != null ? partner.getId() : null;
@@ -78,7 +84,15 @@ public class Member extends BaseTime {
      */
     public void setNickname(String nickname) {this.nickname = nickname;}
 
-
+    /**
+     * 연애 시작 날짜 변경 메서드
+     */
+    public void changeRelationshipStartDate(LocalDate date) {
+        if (date == null) throw new IllegalArgumentException("날짜를 다시 입력해주세요.");
+        if (date.isAfter(LocalDate.now())) throw new IllegalArgumentException("미래의 날짜는 선택할 수 없습니다.");
+        if (Objects.equals(this.relationshipStartDate, date)) return; // idempotent
+        this.relationshipStartDate = date;
+    }
 
     @Builder
     public Member(String platformId,
@@ -90,7 +104,8 @@ public class Member extends BaseTime {
                   String phoneNumber,
                   String birthday,
                   Gender gender,
-                  String ageRange) {
+                  String ageRange,
+                  LocalDate relationshipStartDate) {
         this.platformId = platformId;
         this.email = email;
         this.password = password;
@@ -101,6 +116,6 @@ public class Member extends BaseTime {
         this.birthday = birthday;
         this.gender = gender;
         this.ageRange = ageRange;
+        this.relationshipStartDate = relationshipStartDate;
     }
-
 }

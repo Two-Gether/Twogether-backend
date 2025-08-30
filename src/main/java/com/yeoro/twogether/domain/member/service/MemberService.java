@@ -112,4 +112,11 @@ public interface MemberService {
      * 비밀번호 변경 (LOCAL 사용자 전용)
      */
     void updatePassword(Long memberId, String currentPassword, String newPassword);
+
+    /**
+     * JWT 재발급
+     */
+    LoginResponse refreshTokens(HttpServletRequest request, HttpServletResponse response);
+
+    LoginResponse updateRelationshipStartDate(Long memberId, String date, HttpServletRequest request, HttpServletResponse response);
 }

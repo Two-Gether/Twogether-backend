@@ -26,6 +26,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.UUID;
 
 import static com.yeoro.twogether.global.exception.ErrorCode.MEMBER_NOT_FOUND;
@@ -79,10 +81,10 @@ public class MemberServiceImpl implements MemberService {
         Long partnerId = member.getPartnerId();
         String partnerNickname = partnerId != null ? member.getPartner().getNickname() : null;
 
-        TokenPair tokenPair = tokenService.createTokenPair(memberId, userNickname, partnerId, partnerNickname);
-        tokenService.sendTokensToClient(null, response, tokenPair, memberId, userNickname, partnerId, partnerNickname);
+        TokenPair tokenPair = tokenService.createTokenPair(memberId, userNickname, partnerId, partnerNickname, null);
+        tokenService.sendTokensToClient(null, response, tokenPair, memberId, userNickname, partnerId, partnerNickname, null);
 
-        return LoginResponse.of(tokenPair.getAccessToken(), memberId, userNickname, partnerId, partnerNickname);
+        return LoginResponse.of(tokenPair.getAccessToken(), memberId, userNickname, partnerId, partnerNickname, null);
     }
 
 
@@ -338,24 +340,26 @@ public class MemberServiceImpl implements MemberService {
         Long partnerId = getPartnerId(memberId);
         String partnerNickname = (partnerId != null) ? getNicknameByMemberId(partnerId) : null;
 
-        // 토큰 생성
+        LocalDate relationshipStartDate = memberRepository.findById(memberId)
+                .map(Member::getRelationshipStartDate)
+                .orElse(null);
+
         TokenPair tokenPair = tokenService.createTokenPair(
-                memberId, userNickname, partnerId, partnerNickname
+                memberId, userNickname, partnerId, partnerNickname, relationshipStartDate
         );
 
-        // RefreshToken → Redis 저장 + 쿠키로 전송
         tokenService.sendTokensToClient(
                 request, response, tokenPair,
-                memberId, userNickname, partnerId, partnerNickname
+                memberId, userNickname, partnerId, partnerNickname, relationshipStartDate
         );
 
-        // AccessToken → LoginResponse에 담아서 반환
         return LoginResponse.of(
                 tokenPair.getAccessToken(),
                 memberId,
                 userNickname,
                 partnerId,
-                partnerNickname
+                partnerNickname,
+                relationshipStartDate
         );
     }
 
@@ -382,6 +386,47 @@ public class MemberServiceImpl implements MemberService {
         return createLoginResponse(member.getId(), httpRequest, httpResponse);
     }
 
+    /**
+     * 연애 시작 날짜 추가
+     */
+    @Override
+    @Transactional
+    public LoginResponse updateRelationshipStartDate(Long memberId,
+                                                     String isoDate,
+                                                     HttpServletRequest request,
+                                                     HttpServletResponse response) {
+        // 1) 파싱 (형식 오류 → ServiceException)
+        final LocalDate date;
+        try {
+            date = LocalDate.parse(isoDate); // 'YYYY-MM-DD'
+        } catch (DateTimeParseException e) {
+            throw new ServiceException(ErrorCode.RELATIONSHIP_DATE_FORMAT_INVALID, e);
+        }
+
+        // 엔티티 변경 (도메인 규칙 위반 → IllegalArgumentException 발생)
+        Member me = getCurrentMember(memberId);
+        try {
+            me.changeRelationshipStartDate(date); // null/미래 날짜 등 내부 검증
+        } catch (IllegalArgumentException ex) {
+            throw new ServiceException(ErrorCode.RELATIONSHIP_DATE_RULE_VIOLATION, ex);
+        }
+
+        Member partner = me.getPartner();
+        if (partner != null) {
+            try {
+                partner.changeRelationshipStartDate(date);
+            } catch (IllegalArgumentException ex) {
+                throw new ServiceException(ErrorCode.RELATIONSHIP_DATE_RULE_VIOLATION, ex);
+            }
+            memberRepository.save(partner);
+        }
+        memberRepository.save(me);
+
+        // 최신 데이터로 JWT 재발급
+        return createLoginResponse(memberId, request, response);
+    }
+
+
 
     /**
      * 로그아웃 처리
@@ -396,4 +441,15 @@ public class MemberServiceImpl implements MemberService {
         // Access Token 블랙리스트 등록
         tokenService.blacklistAccessToken(accessToken);
     }
+
+    /**
+     * JWT 재발급
+     */
+    @Override
+    @Transactional
+    public LoginResponse refreshTokens(HttpServletRequest request, HttpServletResponse response) {
+        Long memberId = tokenService.getMemberIdFromRefreshToken(request);
+        return createLoginResponse(memberId, request, response);
+    }
+
 }
