@@ -1,6 +1,8 @@
 package com.yeoro.twogether.global.token;
 
+import com.yeoro.twogether.global.exception.ErrorCode;
 import com.yeoro.twogether.global.exception.ServiceException;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -9,13 +11,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
-import static com.yeoro.twogether.global.exception.ErrorCode.TOKEN_SEND_ERROR;
 
 
 @Slf4j
@@ -36,56 +36,38 @@ public class TokenService {
     /**
      * Token 쌍 생성
      */
-    public TokenPair createTokenPair(Long memberId, String nickname, Long partnerId, String partnerNickname) {
+    public TokenPair createTokenPair(Long memberId,
+                                     String nickname,
+                                     Long partnerId,
+                                     String partnerNickname,
+                                     LocalDate relationshipStartDate) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("memberId", memberId);
         claims.put("nickname", nickname);
         claims.put("partnerId", partnerId);
         claims.put("partnerNickname", partnerNickname);
+        claims.put("relationshipStartDate",
+                relationshipStartDate != null ? relationshipStartDate.toString() : null);
 
         String accessToken = jwtService.createToken(claims, accessExpiration);
         String refreshToken = jwtService.createToken(claims, refreshExpiration);
-
         return new TokenPair(accessToken, refreshToken);
     }
 
     /**
      * 클라이언트에 토큰 전달 (헤더 + 쿠키 + 바디 JSON)
      */
-    public void sendTokensToClient(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            TokenPair tokenPair,
-            Long memberId,
-            String nickname,
-            Long partnerId,
-            String partnerNickname
-    ) {
-        try {
-            // 1. 헤더에 AccessToken 추가
+    public void sendTokensToClient(HttpServletRequest request,
+                                   HttpServletResponse response,
+                                   TokenPair tokenPair,
+                                   Long memberId,
+                                   String nickname,
+                                   Long partnerId,
+                                   String partnerNickname,
+                                   LocalDate relationshipStartDate) {
             response.setHeader("Authorization", "Bearer " + tokenPair.getAccessToken());
-
-            // 2. RefreshToken은 HttpOnly 쿠키로 설정
             jwtService.setRefreshTokenCookie(tokenPair.getRefreshToken(), response);
-
-            // 3. RefreshToken → 세션
             storeRefreshTokenInRedis(memberId, tokenPair.getRefreshToken());
-
-            // 4. JSON 바디 응답
-            Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("accessToken", tokenPair.getAccessToken());
-            responseBody.put("memberId", memberId);
-            responseBody.put("nickname", nickname);
-            responseBody.put("partnerId", partnerId);
-            responseBody.put("partnerNickname", partnerNickname);
-
-            response.setContentType("application/json");
-            response.setCharacterEncoding("UTF-8");
-            new com.fasterxml.jackson.databind.ObjectMapper().writeValue(response.getWriter(), responseBody);
-
-        } catch (IOException e) {
-            throw new ServiceException(TOKEN_SEND_ERROR);
-        }
     }
 
 
@@ -120,5 +102,25 @@ public class TokenService {
             String key = "blacklist:" + accessToken;
             redisTemplate.opsForValue().set(key, "logout", remainingTime, TimeUnit.MILLISECONDS);
         }
+    }
+
+    public Long getMemberIdFromRefreshToken(HttpServletRequest request) {
+        // 쿠키에서 RefreshToken 추출
+        String refreshToken = jwtService.getRefreshTokenFromCookie(request)
+                .orElseThrow(() -> new ServiceException(ErrorCode.TOKEN_INVALID));
+
+        // JWT 파싱 및 유효성 검증
+        Claims claims = jwtService.parseAndValidateToken(refreshToken);
+        Long memberId = claims.get("memberId", Number.class).longValue();
+
+        // Redis에 저장된 RefreshToken과 일치하는지 확인
+        String key = "refresh:" + memberId;
+        String stored = redisTemplate.opsForValue().get(key);
+        if (stored == null || !stored.equals(refreshToken)) {
+            throw new ServiceException(ErrorCode.TOKEN_INVALID);
+        }
+
+        // 최종 memberId 반환
+        return memberId;
     }
 }

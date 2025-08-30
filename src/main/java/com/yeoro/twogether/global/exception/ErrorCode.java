@@ -19,6 +19,8 @@ public enum ErrorCode {
     EMAIL_NOT_VERIFIED("403-2", "member.email.not.verified", HttpStatus.FORBIDDEN),
     INVALID_PASSWORD_FORMAT("400-4", "member.password.invalid", HttpStatus.BAD_REQUEST),
     PASSWORD_NOT_VALID("400-4", "member.password.not.valid", HttpStatus.BAD_REQUEST),
+    RELATIONSHIP_DATE_FORMAT_INVALID("400-20", "relationship.date.format.invalid", HttpStatus.BAD_REQUEST),
+    RELATIONSHIP_DATE_RULE_VIOLATION("400-21", "relationship.date.rule.violation", HttpStatus.BAD_REQUEST),
 
     // Partner Errors
     PARTNER_CODE_INVALID("400-1", "partner.code.invalid", HttpStatus.BAD_REQUEST),

@@ -107,6 +107,17 @@ public class MemberController {
     }
 
     /**
+     * 연애 시작 날짜 정보 추가 APi
+     */
+    @PutMapping("/me/relationship-start-date")
+    public LoginResponse setRelationshipStartDate(@Login Long memberId,
+                                                  @RequestBody RelationshipStartDateRequest req,
+                                                  HttpServletRequest request,
+                                                  HttpServletResponse response) {
+        return memberService.updateRelationshipStartDate(memberId, req.date(), request, response);
+    }
+
+    /**
      * 사용자 정보 조회 API
      */
     @GetMapping("/me")
@@ -155,5 +166,15 @@ public class MemberController {
         @RequestParam String newPassword) {
         memberService.updatePassword(memberId, currentPassword, newPassword);
         return ResponseEntity.ok( "비밀번호가 성공적으로 변경되었습니다.");
+    }
+
+    /**
+     * JWT 재발급
+     * 쿠키의 refreshToken을 읽어 검증하고, DB 최신 데이터로 JWT 재발급하여 응답 바디/헤더/쿠키에 내려줌
+     */
+    @PostMapping("/token/refresh")
+    public LoginResponse refreshToken(HttpServletRequest request,
+                                      HttpServletResponse response) {
+        return memberService.refreshTokens(request, response);
     }
 }
