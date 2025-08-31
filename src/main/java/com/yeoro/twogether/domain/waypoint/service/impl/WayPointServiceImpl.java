@@ -7,6 +7,8 @@ import com.yeoro.twogether.domain.member.service.MemberService;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointCreateRequest;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointUpdateRequest;
 import com.yeoro.twogether.domain.waypoint.dto.response.WaypointCreateResponse;
+import com.yeoro.twogether.domain.waypoint.dto.response.WaypointSummaryListResponse;
+import com.yeoro.twogether.domain.waypoint.dto.response.WaypointSummaryResponse;
 import com.yeoro.twogether.domain.waypoint.dto.response.WaypointUpdateResponse;
 import com.yeoro.twogether.domain.waypoint.dto.response.WaypointWithItemsResponse;
 import com.yeoro.twogether.domain.waypoint.entity.Waypoint;
@@ -17,6 +19,8 @@ import com.yeoro.twogether.domain.waypoint.service.WaypointService;
 import com.yeoro.twogether.domain.waypoint.service.mapper.WaypointMapper;
 import com.yeoro.twogether.global.exception.ServiceException;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +49,29 @@ public class WayPointServiceImpl implements WaypointService {
             .build();
         waypointRepository.save(waypoint);
         return new WaypointCreateResponse(waypoint.getId());
+    }
+
+    /**
+     * <p>특정 회원이 소유한 모든 Waypoint를 조회합니다.</p>
+     * <p>Waypoint별로 WaypointItem 개수를 함께 계산하여 반환합니다.</p>
+     */
+    @Override
+    public WaypointSummaryListResponse getAllWaypoints(Long memberId) {
+        List<Waypoint> waypoints = waypointRepository.findWaypointByMemberId(memberId);
+        Map<Long, Long> counts = waypointItemRepository.countItemsByMemberId(memberId).stream()
+            .collect(Collectors.toMap(
+                row -> (Long) row[0],
+                row -> (Long) row[1]
+            ));
+
+        List<WaypointSummaryResponse> results = waypoints.stream()
+            .map(waypoint -> new WaypointSummaryResponse(
+                waypoint.getName(),
+                counts.getOrDefault(waypoint.getId(), 0L)  // 없으면 0
+            ))
+            .toList();
+
+        return new WaypointSummaryListResponse(results);
     }
 
     /**

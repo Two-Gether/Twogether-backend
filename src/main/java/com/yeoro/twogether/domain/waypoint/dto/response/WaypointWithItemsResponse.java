@@ -6,7 +6,7 @@ import lombok.Builder;
 @Builder
 public record WaypointWithItemsResponse(
     String waypointName,
-    List<WaypointSummaryResponse> waypointSummaryResponses
+    List<WaypointInfoResponse> waypointInfoResponse
 ) {
 
 }
