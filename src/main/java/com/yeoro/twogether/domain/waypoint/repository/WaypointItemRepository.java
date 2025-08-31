@@ -18,4 +18,9 @@ public interface WaypointItemRepository extends JpaRepository<WaypointItem, Long
 
     List<WaypointItem> findByWaypointOrderByItemOrderAsc(Waypoint waypoint);
 
+    @Query("SELECT wi.waypoint.id, COUNT(wi) " +
+        "FROM WaypointItem wi " +
+        "WHERE wi.waypoint.member.id = :memberId " +
+        "GROUP BY wi.waypoint.id")
+    List<Object[]> countItemsByMemberId(@Param("memberId") Long memberId);
 }
