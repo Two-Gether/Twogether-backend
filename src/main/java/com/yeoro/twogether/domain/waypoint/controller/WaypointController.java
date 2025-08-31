@@ -3,6 +3,7 @@ package com.yeoro.twogether.domain.waypoint.controller;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointCreateRequest;
 import com.yeoro.twogether.domain.waypoint.dto.request.WaypointUpdateRequest;
 import com.yeoro.twogether.domain.waypoint.dto.response.WaypointCreateResponse;
+import com.yeoro.twogether.domain.waypoint.dto.response.WaypointSummaryListResponse;
 import com.yeoro.twogether.domain.waypoint.dto.response.WaypointUpdateResponse;
 import com.yeoro.twogether.domain.waypoint.dto.response.WaypointWithItemsResponse;
 import com.yeoro.twogether.domain.waypoint.service.WaypointService;
@@ -38,6 +39,17 @@ public class WaypointController {
     public WaypointCreateResponse createWaypoint(@Login Long memberId,
         @RequestBody WaypointCreateRequest request) {
         return waypointService.createWaypoint(memberId, request);
+    }
+
+    /**
+     * 회원이 소유한 모든 Waypoint 목록을 조회합니다.
+     *
+     * @param memberId 로그인된 회원 ID (커스텀 리졸버 @Login 이용)
+     * @return Waypoint 요약 정보 리스트
+     */
+    @GetMapping
+    public WaypointSummaryListResponse getAllWaypoints(@Login Long memberId) {
+        return waypointService.getAllWaypoints(memberId);
     }
 
     /**
