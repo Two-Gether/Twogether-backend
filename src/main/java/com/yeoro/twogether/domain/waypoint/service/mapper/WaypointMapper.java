@@ -1,6 +1,6 @@
 package com.yeoro.twogether.domain.waypoint.service.mapper;
 
-import com.yeoro.twogether.domain.waypoint.dto.response.WaypointSummaryResponse;
+import com.yeoro.twogether.domain.waypoint.dto.response.WaypointInfoResponse;
 import com.yeoro.twogether.domain.waypoint.dto.response.WaypointWithItemsResponse;
 import com.yeoro.twogether.domain.waypoint.entity.WaypointItem;
 import java.util.List;
@@ -17,14 +17,14 @@ public class WaypointMapper {
         List<WaypointItem> waypointItems) {
         return WaypointWithItemsResponse.builder()
             .waypointName(waypointName)
-            .waypointSummaryResponses(toWaypointSummaryResponseList(waypointItems))
+            .waypointInfoResponse(toWaypointSummaryResponseList(waypointItems))
             .build();
     }
 
     /**
-     * WaypointItem 엔티티 목록을 WaypointSummaryResponse DTO 목록으로 변환
+     * WaypointItem 엔티티 목록을 WaypointInfoResponse DTO 목록으로 변환
      */
-    private List<WaypointSummaryResponse> toWaypointSummaryResponseList(
+    private List<WaypointInfoResponse> toWaypointSummaryResponseList(
         List<WaypointItem> waypointItems) {
         return waypointItems.stream()
             .map(this::toWaypointItemSummaryResponse)
@@ -32,10 +32,10 @@ public class WaypointMapper {
     }
 
     /**
-     * 단일 WaypointItem 엔티티를 WaypointSummaryResponse DTO로 변환
+     * 단일 WaypointItem 엔티티를 WaypointInfoResponse DTO로 변환
      */
-    private WaypointSummaryResponse toWaypointItemSummaryResponse(WaypointItem waypointItem) {
-        return WaypointSummaryResponse.builder()
+    private WaypointInfoResponse toWaypointItemSummaryResponse(WaypointItem waypointItem) {
+        return WaypointInfoResponse.builder()
             .itemId(waypointItem.getId())
             .name(waypointItem.getName())
             .imageUrl(waypointItem.getImageUrl())
