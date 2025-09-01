@@ -26,7 +26,10 @@ public class Member extends BaseTime {
     private String password;
 
     @Column(nullable = false)
-    private String nickname;
+    private String name; // 사용자 이름
+
+    @Column(nullable = true)
+    private String nickname; // 연인이 지어준 별명(애칭)
 
     @Column
     private String profileImageUrl;
@@ -51,11 +54,11 @@ public class Member extends BaseTime {
     @Column
     private String ageRange; // 예: "20"
 
-    @OneToOne
-    @JoinColumn(name = "partner_id")
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_id", unique = true)
     private Member partner;
 
-    @Column(name = "relationship_start_date")
+    @Column(name = "relationship_start_date", nullable = true)
     private LocalDate relationshipStartDate;
 
     public Long getPartnerId() {
@@ -80,9 +83,16 @@ public class Member extends BaseTime {
     public void setProfileImageUrl(String profileImageUrl) {this.profileImageUrl = profileImageUrl;}
 
     /**
-     * 닉네임 변경 메서드
+     * 이름 변경 메서드
      */
+    public void setName(String name) {this.name = name;}
+
+    /** 파트너 별명 변경 메서드 */
     public void setNickname(String nickname) {this.nickname = nickname;}
+
+    public void clearRelationshipStartDate() {
+        this.relationshipStartDate = null;
+    }
 
     /**
      * 연애 시작 날짜 변경 메서드
@@ -98,7 +108,7 @@ public class Member extends BaseTime {
     public Member(String platformId,
                   String email,
                   String password,
-                  String nickname,
+                  String name,
                   String profileImageUrl,
                   LoginPlatform loginPlatform,
                   String phoneNumber,
@@ -109,7 +119,7 @@ public class Member extends BaseTime {
         this.platformId = platformId;
         this.email = email;
         this.password = password;
-        this.nickname = nickname;
+        this.name = name;
         this.profileImageUrl = profileImageUrl;
         this.loginPlatform = loginPlatform;
         this.phoneNumber = phoneNumber;
@@ -118,4 +128,5 @@ public class Member extends BaseTime {
         this.ageRange = ageRange;
         this.relationshipStartDate = relationshipStartDate;
     }
+
 }

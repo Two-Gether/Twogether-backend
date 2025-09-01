@@ -54,11 +54,9 @@ public class MemberServiceImpl implements MemberService {
         if (memberRepository.existsByEmail(request.email())) {
             throw new ServiceException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
-
         if (!emailVerificationService.isVerified(request.email())) {
             throw new ServiceException(ErrorCode.EMAIL_NOT_VERIFIED);
         }
-
         if (!PasswordValidator.isValid(request.password())) {
             throw new ServiceException(ErrorCode.PASSWORD_NOT_VALID);
         }
@@ -66,25 +64,33 @@ public class MemberServiceImpl implements MemberService {
         Member member = Member.builder()
                 .email(request.email())
                 .password(passwordEncoder.encode(request.password()))
-                .nickname(request.nickname())
+                .name(request.name())
                 .phoneNumber(request.phoneNumber())
                 .birthday(request.birthday())
                 .gender(request.gender())
                 .ageRange(request.ageRange())
                 .loginPlatform(LoginPlatform.LOCAL)
                 .build();
+
         memberRepository.save(member);
         emailVerificationService.clearVerificationInfo(request.email());
 
-        String userNickname = member.getNickname();
+        // 파트너 없음 → partnerId null
         Long memberId = member.getId();
-        Long partnerId = member.getPartnerId();
-        String partnerNickname = partnerId != null ? member.getPartner().getNickname() : null;
+        TokenPair tokenPair = tokenService.createTokenPair(memberId, member.getEmail(), null);
+        tokenService.sendTokensToClient(null, response, tokenPair);
+        tokenService.storeRefreshTokenInRedis(memberId, tokenPair.getRefreshToken());
 
-        TokenPair tokenPair = tokenService.createTokenPair(memberId, userNickname, partnerId, partnerNickname, null);
-        tokenService.sendTokensToClient(null, response, tokenPair, memberId, userNickname, partnerId, partnerNickname, null);
-
-        return LoginResponse.of(tokenPair.getAccessToken(), memberId, userNickname, partnerId, partnerNickname, null);
+        return LoginResponse.of(
+                tokenPair.getAccessToken(),
+                memberId,
+                member.getName(),     // name
+                member.getNickname(), // myNickname (초기 null)
+                null,                 // partnerId
+                null,                 // partnerName
+                null,                 // partnerNickname
+                null                  // relationshipStartDate
+        );
     }
 
 
@@ -113,15 +119,12 @@ public class MemberServiceImpl implements MemberService {
     @Override
     @Transactional
     public Long signupByOauth(OauthProfile profile, LoginPlatform loginPlatform, String encodedPassword) {
-        // 이미 존재하면 해당 회원 ID 반환
         if (isExistPlatformId(profile.getPlatformId())) {
             return getMemberIdByPlatformId(profile.getPlatformId());
         }
-
-        // 신규 회원 가입
         Member newMember = Member.builder()
                 .email(profile.getEmail())
-                .nickname(profile.getNickname())
+                .name(profile.getName()) // KakaoProfile에서 name 매핑
                 .profileImageUrl(profile.getProfileImageUrl())
                 .loginPlatform(loginPlatform)
                 .platformId(profile.getPlatformId())
@@ -131,7 +134,6 @@ public class MemberServiceImpl implements MemberService {
                 .gender(Gender.from(profile.getGender()))
                 .ageRange(profile.getAgeRange())
                 .build();
-
         return memberRepository.save(newMember).getId();
     }
 
@@ -157,9 +159,9 @@ public class MemberServiceImpl implements MemberService {
      * 회원 ID 기반 닉네임 조회 존재하지 않으면 예외 발생
      */
     @Override
-    public String getNicknameByMemberId(Long memberId) {
+    public String getNameByMemberId(Long memberId) {
         return memberRepository.findById(memberId)
-            .map(Member::getNickname)
+            .map(Member::getName)
             .orElseThrow(() -> new ServiceException(MEMBER_NOT_FOUND));
     }
 
@@ -244,8 +246,8 @@ public class MemberServiceImpl implements MemberService {
      */
     @Override
     public Member getCurrentMember(Long memberId) {
-        return memberRepository.findById(memberId)
-            .orElseThrow(() -> new ServiceException(ErrorCode.MEMBER_NOT_FOUND));
+        return memberRepository.findByIdWithPartner(memberId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.MEMBER_NOT_FOUND));
     }
 
     /**
@@ -260,14 +262,33 @@ public class MemberServiceImpl implements MemberService {
     }
 
     /**
-     * 닉네임 수정
+     * 이름 수정
      */
     @Override
     @Transactional
-    public void updateNickname(Long memberId, String newNickname) {
+    public void updateName(Long memberId, String newName) {
         Member member = getCurrentMember(memberId);
-        member.setNickname(newNickname);
+        member.setName(newName);
         memberRepository.save(member);
+    }
+
+    /**
+     * 파트너 별명 설정
+     */
+    @Override
+    @Transactional
+    public void setPartnerNickname(Long requesterId, String nickname) {
+        // 요청자 조회
+        Member me = getCurrentMember(requesterId);
+
+        // 파트너 확인
+        Member partner = me.getPartner();
+        if (partner == null) {
+            throw new ServiceException(ErrorCode.PARTNER_CODE_INVALID); // 파트너 미연결 상황
+        }
+
+        partner.setNickname(nickname);
+        memberRepository.save(partner);
     }
 
     /**
@@ -276,17 +297,26 @@ public class MemberServiceImpl implements MemberService {
     @Override
     @Transactional
     public void disconnectPartner(Long memberId) {
-        Member member = getCurrentMember(memberId);
-        Member partner = member.getPartner();
+        // 본인 조회
+        Member me = getCurrentMember(memberId);
+        Member partner = me.getPartner();
 
         if (partner != null) {
-            // 서로의 partner 모두 null로 끊음
+            // 양쪽 nickname 초기화
+            partner.setNickname(null);
+            me.setNickname(null);
+
+            // 양쪽 연애 날짜 초기화
+            partner.clearRelationshipStartDate();
+            me.clearRelationshipStartDate();
+
+            // 파트너 끊기 (상호)
             partner.connectPartner(null);
-            member.connectPartner(null);
+            me.connectPartner(null);
 
             memberRepository.save(partner);
         }
-        memberRepository.save(member);
+        memberRepository.save(me);
     }
 
     /**
@@ -336,32 +366,43 @@ public class MemberServiceImpl implements MemberService {
     private LoginResponse createLoginResponse(Long memberId,
                                               HttpServletRequest request,
                                               HttpServletResponse response) {
-        String userNickname = getNicknameByMemberId(memberId);
-        Long partnerId = getPartnerId(memberId);
-        String partnerNickname = (partnerId != null) ? getNicknameByMemberId(partnerId) : null;
+        Member me = memberRepository.findById(memberId)
+                .orElseThrow(() -> new ServiceException(MEMBER_NOT_FOUND));
 
-        LocalDate relationshipStartDate = memberRepository.findById(memberId)
-                .map(Member::getRelationshipStartDate)
-                .orElse(null);
+        Member partner = me.getPartner();
+        Long partnerId = (partner != null) ? partner.getId() : null;
 
+        // 토큰
         TokenPair tokenPair = tokenService.createTokenPair(
-                memberId, userNickname, partnerId, partnerNickname, relationshipStartDate
+                me.getId(),
+                me.getEmail(),
+                partnerId
         );
 
-        tokenService.sendTokensToClient(
-                request, response, tokenPair,
-                memberId, userNickname, partnerId, partnerNickname, relationshipStartDate
-        );
+        // 전송
+        tokenService.sendTokensToClient(request, response, tokenPair);
+        tokenService.storeRefreshTokenInRedis(memberId, tokenPair.getRefreshToken());
+
+        //
+        String name = me.getName();
+        String myNickname = me.getNickname(); // 파트너가 '나'에게 준 애칭
+        String partnerName = (partner != null) ? partner.getName() : null;
+        String partnerNickname = (partner != null) ? partner.getNickname() : null;
+
+        LocalDate relationshipStartDate = me.getRelationshipStartDate();
 
         return LoginResponse.of(
                 tokenPair.getAccessToken(),
                 memberId,
-                userNickname,
+                name,
+                myNickname,
                 partnerId,
+                partnerName,
                 partnerNickname,
                 relationshipStartDate
         );
     }
+
 
     /**
      * 일반 로그인

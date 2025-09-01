@@ -4,33 +4,38 @@ import com.yeoro.twogether.domain.member.entity.Member;
 
 import java.time.LocalDate;
 
-/**
- * 사용자 정보 응답 DTO
- */
 public record MemberInfoResponse(
         Long memberId,
         String email,
-        String nickname,
+
+        String name,            // 내 이름
+        String myNickname,      // 파트너가 '나'에게 준 애칭 (me.nickname)
+
         String profileImageUrl,
+
         Long partnerId,
-        String partnerNickname,
+        String partnerName,     // 파트너 이름
+        String partnerNickname, // 내가 파트너에게 준 애칭 (partner.nickname)
+
         LocalDate relationshipStartDate
 ) {
-    /**
-     * Member 엔티티를 응답 DTO로 변환
-     */
-    public static MemberInfoResponse of(Member member) {
-        Long partnerId = member.getPartnerId();
-        String partnerNickname = (member.getPartner() != null) ? member.getPartner().getNickname() : null;
+    public static MemberInfoResponse of(Member me) {
+        Long partnerId = me.getPartnerId();
+        Member partner = me.getPartner();
+
+        String partnerName = (partner != null) ? partner.getName() : null;
+        String partnerNickname = (partner != null) ? partner.getNickname() : null;
 
         return new MemberInfoResponse(
-                member.getId(),
-                member.getEmail(),
-                member.getNickname(),
-                member.getProfileImageUrl(),
+                me.getId(),
+                me.getEmail(),
+                me.getName(),
+                me.getNickname(),           // myNickname
+                me.getProfileImageUrl(),
                 partnerId,
+                partnerName,
                 partnerNickname,
-                member.getRelationshipStartDate()
+                me.getRelationshipStartDate()
         );
     }
 }
