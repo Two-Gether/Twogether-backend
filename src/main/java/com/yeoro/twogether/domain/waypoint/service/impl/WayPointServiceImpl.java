@@ -66,6 +66,7 @@ public class WayPointServiceImpl implements WaypointService {
 
         List<WaypointSummaryResponse> results = waypoints.stream()
             .map(waypoint -> new WaypointSummaryResponse(
+                waypoint.getId(),
                 waypoint.getName(),
                 counts.getOrDefault(waypoint.getId(), 0L)  // 없으면 0
             ))
