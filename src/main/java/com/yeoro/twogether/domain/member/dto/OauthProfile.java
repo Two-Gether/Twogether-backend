@@ -12,7 +12,7 @@ import lombok.Setter;
 public class OauthProfile {
     private String email;
     private String phoneNumber;         // 추가
-    private String nickname;
+    private String name;
     private String platformId;
     private String profileImageUrl;
     private String birthday;           // 선택

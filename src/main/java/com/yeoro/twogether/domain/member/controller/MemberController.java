@@ -84,9 +84,7 @@ public class MemberController {
         return memberService.generatePartnerCode(memberId);
     }
 
-    /**
-     * 파트너 연결 API
-     */
+    /** 파트너 연결 API */
     @PostMapping("/partner/connect")
     public LoginResponse connectPartner(@Login Long requesterId,
         @RequestParam String code,
@@ -95,12 +93,28 @@ public class MemberController {
         return memberService.connectPartner(requesterId, code, request, response);
     }
 
+    /** 연인 애칭 지정: A가 호출하면 B의 nickname을 지정(멱등) */
+    @PutMapping("/partner/nickname")
+    public ResponseEntity<String> setPartnerNickname(
+            @Login Long memberId,
+            @RequestBody PartnerNicknameRequest request
+    ) {
+        memberService.setPartnerNickname(memberId, request.nickname());
+        return ResponseEntity.ok( "애칭이 성공적으로 변경되었습니다.");
+    }
+
+    /** 파트너 연결 끊기: 관계 제거 + 양쪽 nickname = null */
+    @DeleteMapping("/me/partner")
+    public ResponseEntity<String> disconnectPartner(@Login Long memberId) {
+        memberService.disconnectPartner(memberId);
+        return ResponseEntity.ok("파트너 연결이 성공적으로 해제되었습니다.");
+    }
+
     /**
      * 로그아웃
      */
     @DeleteMapping("/logout")
     public ResponseEntity<String> logout(@Login Long memberId, HttpServletRequest request) {
-        // "Bearer ..."에서 accessToken 추출
         String accessToken = jwtService.resolveToken(request);
         memberService.logout(memberId, accessToken);
         return ResponseEntity.ok("로그아웃 되었습니다.");
@@ -139,23 +153,15 @@ public class MemberController {
     }
 
     /**
-     * 닉네임 변경 API
+     * 이름 변경 API
      */
-    @PutMapping("/me/nickname")
-    public ResponseEntity<String> updateNickname(@Login Long memberId,
-        @RequestParam String newNickname) {
-        memberService.updateNickname(memberId, newNickname);
-        return ResponseEntity.ok( "닉네임이 성공적으로 변경되었습니다.");
+    @PutMapping("/me/name")
+    public ResponseEntity<String> updateName(@Login Long memberId,
+                                             @RequestParam String newName) {
+        memberService.updateName(memberId, newName);
+        return ResponseEntity.ok( "이름이 성공적으로 변경되었습니다.");
     }
 
-    /**
-     * 파트너 연결 끊기 API
-     */
-    @PutMapping("/me/partner/disconnect")
-    public ResponseEntity<String> disconnectPartner(@Login Long memberId) {
-        memberService.disconnectPartner(memberId);
-        return ResponseEntity.ok("파트너 연결이 성공적으로 해제되었습니다.");
-    }
 
     /**
      * 비밀번호 변경 API LOCAL 사용자만 가능

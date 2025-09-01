@@ -51,9 +51,9 @@ public interface MemberService {
     Long getMemberIdByPlatformId(String platformId);
 
     /**
-     * 회원 ID 기반 닉네임 조회 존재하지 않으면 예외 발생
+     * 회원 ID 기반 이름 조회 존재하지 않으면 예외 발생
      */
-    String getNicknameByMemberId(Long memberId);
+    String getNameByMemberId(Long memberId);
 
     /**
      * 회원 ID 기반 파트너 ID 조회 파트너 없으면 null 반환
@@ -99,9 +99,14 @@ public interface MemberService {
     void updateProfileImage(Long memberId, String newImageUrl);
 
     /**
-     * 닉네임 수정
+     * 이름 수정
      */
-    void updateNickname(Long memberId, String newNickname);
+    void updateName(Long memberId, String newName);
+
+    /**
+     * 파트너 별명 설정
+     */
+    void setPartnerNickname(Long requesterId, String nickname);
 
     /**
      * 파트너 연결 끊기

@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -37,17 +36,12 @@ public class TokenService {
      * Token 쌍 생성
      */
     public TokenPair createTokenPair(Long memberId,
-                                     String nickname,
-                                     Long partnerId,
-                                     String partnerNickname,
-                                     LocalDate relationshipStartDate) {
+                                     String email,
+                                     Long partnerId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("memberId", memberId);
-        claims.put("nickname", nickname);
+        claims.put("email", email);
         claims.put("partnerId", partnerId);
-        claims.put("partnerNickname", partnerNickname);
-        claims.put("relationshipStartDate",
-                relationshipStartDate != null ? relationshipStartDate.toString() : null);
 
         String accessToken = jwtService.createToken(claims, accessExpiration);
         String refreshToken = jwtService.createToken(claims, refreshExpiration);
@@ -59,15 +53,9 @@ public class TokenService {
      */
     public void sendTokensToClient(HttpServletRequest request,
                                    HttpServletResponse response,
-                                   TokenPair tokenPair,
-                                   Long memberId,
-                                   String nickname,
-                                   Long partnerId,
-                                   String partnerNickname,
-                                   LocalDate relationshipStartDate) {
-            response.setHeader("Authorization", "Bearer " + tokenPair.getAccessToken());
-            jwtService.setRefreshTokenCookie(tokenPair.getRefreshToken(), response);
-            storeRefreshTokenInRedis(memberId, tokenPair.getRefreshToken());
+                                   TokenPair tokenPair) {
+        response.setHeader("Authorization", "Bearer " + tokenPair.getAccessToken());
+        jwtService.setRefreshTokenCookie(tokenPair.getRefreshToken(), response);
     }
 
 

@@ -4,7 +4,7 @@ import com.yeoro.twogether.domain.member.entity.Gender;
 public record SignupRequest(
         String email,
         String password,
-        String nickname,
+        String name,
         String phoneNumber,
         String birthday,
         Gender gender,
