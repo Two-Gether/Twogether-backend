@@ -47,6 +47,11 @@ public class DiaryServiceImpl implements DiaryService {
     private final WaypointRepository waypointRepository;
     private final WaypointItemRepository waypointItemRepository;
 
+    /**
+     * 새로운 Diary를 생성합니다.
+     * <p>
+     * - 요청한 Waypoint가 존재하지 않으면 {@link ServiceException} 발생 - Diary 저장 후 Sticker 목록이 존재한다면 함께 저장
+     */
     @Override
     @Transactional
     public DiaryCreateResponse createDiary(Long memberId, DiaryCreateRequest request) {
@@ -84,6 +89,11 @@ public class DiaryServiceImpl implements DiaryService {
         return new DiaryCreateResponse(diary.getId());
     }
 
+    /**
+     * 특정 월에 해당하는 회원의 Diary 목록을 조회합니다.
+     * <p>
+     * - 시작일 또는 종료일이 요청 기간에 속하는 Diary를 조회 - 각 Diary에 대해 대표(main) Sticker를 매핑
+     */
     @Override
     public DiaryMonthOverviewListResponse getMonthOverviewDiary(Long memberId,
         DiaryMonthOverviewRequest request) {
@@ -125,7 +135,11 @@ public class DiaryServiceImpl implements DiaryService {
         return new DiaryMonthOverviewListResponse(overviewResponses);
     }
 
-
+    /**
+     * 특정 Diary의 상세 정보를 조회합니다.
+     * <p>
+     * - Diary와 연결된 Sticker 전체를 조회 - Waypoint가 연결된 경우, 해당 Waypoint의 상위 3개 아이템을 조회
+     */
     @Override
     public DiaryDetailResponse getDetailDiary(Long memberId, Long diaryId) {
         Diary diary = validateAndGetDiary(memberId, diaryId);
@@ -141,6 +155,11 @@ public class DiaryServiceImpl implements DiaryService {
         return diaryMapper.toDiaryDetailResponse(diary, stickers, topWaypointItems);
     }
 
+    /**
+     * 특정 Diary를 수정합니다.
+     * <p>
+     * - 요청한 Waypoint가 존재하지 않으면 {@link ServiceException} 발생 - 기존 Sticker 전체 삭제 후 새로 전달된 Sticker로 교체
+     */
     @Override
     @Transactional
     public DiaryUpdateResponse updateDiary(Long memberId, Long diaryId,
@@ -172,6 +191,11 @@ public class DiaryServiceImpl implements DiaryService {
         return new DiaryUpdateResponse(diary.getId());
     }
 
+    /**
+     * 특정 Diary를 삭제합니다.
+     * <p>
+     * - Diary가 존재하지 않으면 예외 발생 - Diary 삭제 시 연결된 Sticker도 함께 삭제
+     */
     @Override
     @Transactional
     public void deleteDiary(Long memberId, Long diaryId) {
