@@ -25,11 +25,13 @@ public class Member extends BaseTime {
     @Column(nullable = false)
     private String password;
 
+    // 실명(사용자 설정 이름)
     @Column(nullable = false)
-    private String name; // 사용자 이름
+    private String name;
 
+    // 연인이 지어준 별명(애칭)
     @Column(nullable = true)
-    private String nickname; // 연인이 지어준 별명(애칭)
+    private String nickname;
 
     @Column
     private String profileImageUrl;
@@ -38,14 +40,12 @@ public class Member extends BaseTime {
     @Column(nullable = false)
     private LoginPlatform loginPlatform;
 
+    // OAuth 공급자별 식별자 (카카오 등). unique 허용.
     @Column(unique = true)
-    private String platformId; // 플랫폼별 고유 ID (ex: 카카오 ID)
+    private String platformId;
 
     @Column(nullable = true)
     private String phoneNumber;
-
-    @Column
-    private String birthday; // 예: "2000-01-01"
 
     @Enumerated(EnumType.STRING)
     @Column
@@ -112,7 +112,6 @@ public class Member extends BaseTime {
                   String profileImageUrl,
                   LoginPlatform loginPlatform,
                   String phoneNumber,
-                  String birthday,
                   Gender gender,
                   String ageRange,
                   LocalDate relationshipStartDate) {
@@ -123,7 +122,6 @@ public class Member extends BaseTime {
         this.profileImageUrl = profileImageUrl;
         this.loginPlatform = loginPlatform;
         this.phoneNumber = phoneNumber;
-        this.birthday = birthday;
         this.gender = gender;
         this.ageRange = ageRange;
         this.relationshipStartDate = relationshipStartDate;
