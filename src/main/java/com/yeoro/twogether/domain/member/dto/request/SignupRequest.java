@@ -1,4 +1,5 @@
 package com.yeoro.twogether.domain.member.dto.request;
+
 import com.yeoro.twogether.domain.member.entity.Gender;
 
 public record SignupRequest(
@@ -6,7 +7,6 @@ public record SignupRequest(
         String password,
         String name,
         String phoneNumber,
-        String birthday,
         Gender gender,
         String ageRange
 ) {}

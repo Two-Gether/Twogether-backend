@@ -55,15 +55,14 @@ public class InitTestUsersRunner implements ApplicationRunner {
         if (member == null) {
             MockHttpServletResponse signupResp = new MockHttpServletResponse();
 
-            // SignupRequest(email, password, name, phoneNumber, birthday, gender, ageRange)
+            // SignupRequest(email, password, name, phoneNumber, gender, ageRange)  ← birthday 제거 반영
             SignupRequest req = new SignupRequest(
                     u.email(),
                     u.password(),
                     u.name(),
-                    null,
-                    null,
-                    Gender.UNKNOWN, // enum에 맞게 필요 시 값 조정
-                    null
+                    null,              // phoneNumber
+                    Gender.UNKNOWN,    // gender
+                    null               // ageRange
             );
 
             memberService.signup(req, signupResp);
@@ -105,7 +104,7 @@ public class InitTestUsersRunner implements ApplicationRunner {
             }
         }
 
-        // 2) 혹시라도 Mock에 쿠키로 들어오는 경우 대비(대부분 1)에서 끝남)
+        // 2) 혹시라도 Mock에 쿠키로 들어오는 경우 대비
         Cookie[] cookies = response.getCookies();
         if (cookies != null) {
             for (Cookie c : cookies) {

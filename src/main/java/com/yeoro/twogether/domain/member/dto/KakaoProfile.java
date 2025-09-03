@@ -21,7 +21,6 @@ public class KakaoProfile {
     public static class KakaoAccount {
         private String email;
         private String phoneNumber;
-        private String birthday;
         private String gender;
         private String ageRange;
         private Profile profile;

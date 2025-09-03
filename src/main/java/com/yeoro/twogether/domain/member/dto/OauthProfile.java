@@ -15,7 +15,6 @@ public class OauthProfile {
     private String name;
     private String platformId;
     private String profileImageUrl;
-    private String birthday;           // 선택
     private String gender;             // 선택
     private String ageRange;           // 선택
 }

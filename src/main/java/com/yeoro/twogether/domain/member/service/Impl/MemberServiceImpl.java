@@ -48,6 +48,9 @@ public class MemberServiceImpl implements MemberService {
     /**
      * 일반 회원가입
      */
+    /**
+     * 일반 회원가입
+     */
     @Override
     @Transactional
     public LoginResponse signup(SignupRequest request, HttpServletResponse response) {
@@ -66,7 +69,6 @@ public class MemberServiceImpl implements MemberService {
                 .password(passwordEncoder.encode(request.password()))
                 .name(request.name())
                 .phoneNumber(request.phoneNumber())
-                .birthday(request.birthday())
                 .gender(request.gender())
                 .ageRange(request.ageRange())
                 .loginPlatform(LoginPlatform.LOCAL)
@@ -75,7 +77,6 @@ public class MemberServiceImpl implements MemberService {
         memberRepository.save(member);
         emailVerificationService.clearVerificationInfo(request.email());
 
-        // 파트너 없음 → partnerId null
         Long memberId = member.getId();
         TokenPair tokenPair = tokenService.createTokenPair(memberId, member.getEmail(), null);
         tokenService.sendTokensToClient(null, response, tokenPair);
@@ -84,14 +85,15 @@ public class MemberServiceImpl implements MemberService {
         return LoginResponse.of(
                 tokenPair.getAccessToken(),
                 memberId,
-                member.getName(),     // name
-                member.getNickname(), // myNickname (초기 null)
-                null,                 // partnerId
-                null,                 // partnerName
-                null,                 // partnerNickname
-                null                  // relationshipStartDate
+                member.getName(),      // name
+                member.getNickname(),  // myNickname (초기 null)
+                null,                  // partnerId
+                null,                  // partnerName
+                null,                  // partnerNickname
+                null                   // relationshipStartDate
         );
     }
+
 
 
 
@@ -130,7 +132,6 @@ public class MemberServiceImpl implements MemberService {
                 .platformId(profile.getPlatformId())
                 .password(encodedPassword)
                 .phoneNumber(profile.getPhoneNumber())
-                .birthday(profile.getBirthday())
                 .gender(Gender.from(profile.getGender()))
                 .ageRange(profile.getAgeRange())
                 .build();

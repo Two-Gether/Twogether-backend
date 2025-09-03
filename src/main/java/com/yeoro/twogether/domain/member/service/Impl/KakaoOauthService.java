@@ -92,7 +92,6 @@ public class KakaoOauthService implements OauthService {
         profile.setName(kakaoProfileInfo.getNickname());
         profile.setProfileImageUrl(kakaoProfileInfo.getProfileImageUrl());
         profile.setPlatformId(String.valueOf(kakaoProfile.getId()));
-        profile.setBirthday(account.getBirthday());
         profile.setGender(account.getGender());
         profile.setAgeRange(account.getAgeRange());
 
