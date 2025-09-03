@@ -3,6 +3,7 @@ package com.yeoro.twogether.domain.waypoint.repository;
 import com.yeoro.twogether.domain.waypoint.entity.Waypoint;
 import com.yeoro.twogether.domain.waypoint.entity.WaypointItem;
 import java.util.List;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,4 +24,8 @@ public interface WaypointItemRepository extends JpaRepository<WaypointItem, Long
         "WHERE wi.waypoint.member.id = :memberId " +
         "GROUP BY wi.waypoint.id")
     List<Object[]> countItemsByMemberId(@Param("memberId") Long memberId);
+
+    @Query("SELECT w FROM WaypointItem w WHERE w.waypoint.id = :waypointId ORDER BY w.itemOrder ASC")
+    List<WaypointItem> findTop3ByWaypointIdOrderByItemOrderAsc(@Param("waypointId") Long waypointId,
+        Pageable pageable);
 }

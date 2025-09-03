@@ -19,8 +19,10 @@ public enum ErrorCode {
     EMAIL_NOT_VERIFIED("403-2", "member.email.not.verified", HttpStatus.FORBIDDEN),
     INVALID_PASSWORD_FORMAT("400-4", "member.password.invalid", HttpStatus.BAD_REQUEST),
     PASSWORD_NOT_VALID("400-4", "member.password.not.valid", HttpStatus.BAD_REQUEST),
-    RELATIONSHIP_DATE_FORMAT_INVALID("400-20", "relationship.date.format.invalid", HttpStatus.BAD_REQUEST),
-    RELATIONSHIP_DATE_RULE_VIOLATION("400-21", "relationship.date.rule.violation", HttpStatus.BAD_REQUEST),
+    RELATIONSHIP_DATE_FORMAT_INVALID("400-20", "relationship.date.format.invalid",
+        HttpStatus.BAD_REQUEST),
+    RELATIONSHIP_DATE_RULE_VIOLATION("400-21", "relationship.date.rule.violation",
+        HttpStatus.BAD_REQUEST),
 
     // Partner Errors
     PARTNER_CODE_INVALID("400-1", "partner.code.invalid", HttpStatus.BAD_REQUEST),
@@ -50,7 +52,11 @@ public enum ErrorCode {
     PLACE_NOT_FOUND("404-10", "place.not.found", HttpStatus.NOT_FOUND),
     PLACE_ADDRESS_EXISTS("409-10", "place.address.exists", HttpStatus.CONFLICT),
     PLACE_CREATION_FAILED("500-10", "place.creation.failed", HttpStatus.INTERNAL_SERVER_ERROR),
-    PLACE_TAG_LIMIT_EXCEEDED("400-11", "place.tag.limit.exceeded", HttpStatus.BAD_REQUEST);
+    PLACE_TAG_LIMIT_EXCEEDED("400-11", "place.tag.limit.exceeded", HttpStatus.BAD_REQUEST),
+
+    //Diary Errors
+    DIARY_NOT_FOUND("407-01", "diary.not.found", HttpStatus.NOT_FOUND),
+    DIARY_OWNERSHIP_MISMATCH("407-02", "diary.ownership.mismatch", HttpStatus.FORBIDDEN);
 
 
     private final String code;
