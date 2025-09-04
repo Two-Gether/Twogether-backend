@@ -2,7 +2,6 @@ package com.yeoro.twogether.domain.diary.service.impl;
 
 import static com.yeoro.twogether.global.exception.ErrorCode.DIARY_NOT_FOUND;
 import static com.yeoro.twogether.global.exception.ErrorCode.STICKER_NOT_FOUND;
-import static com.yeoro.twogether.global.exception.ErrorCode.WAYPOINT_NOT_FOUND;
 
 import com.yeoro.twogether.domain.diary.dto.request.DiaryCreateRequest;
 import com.yeoro.twogether.domain.diary.dto.request.DiaryMonthOverviewRequest;
@@ -15,8 +14,10 @@ import com.yeoro.twogether.domain.diary.dto.response.DiaryMonthOverviewResponse;
 import com.yeoro.twogether.domain.diary.dto.response.DiaryUpdateResponse;
 import com.yeoro.twogether.domain.diary.entity.Diary;
 import com.yeoro.twogether.domain.diary.entity.Sticker;
+import com.yeoro.twogether.domain.diary.entity.StickerTemplate;
 import com.yeoro.twogether.domain.diary.repository.DiaryRepository;
 import com.yeoro.twogether.domain.diary.repository.StickerRepository;
+import com.yeoro.twogether.domain.diary.repository.StickerTemplateRepository;
 import com.yeoro.twogether.domain.diary.service.DiaryService;
 import com.yeoro.twogether.domain.diary.service.mapper.DiaryMapper;
 import com.yeoro.twogether.domain.member.entity.Member;
@@ -48,6 +49,7 @@ public class DiaryServiceImpl implements DiaryService {
     private final StickerRepository stickerRepository;
     private final WaypointRepository waypointRepository;
     private final WaypointItemRepository waypointItemRepository;
+    private final StickerTemplateRepository stickerTemplateRepository;
 
     /**
      * 새로운 Diary를 생성합니다.
@@ -58,10 +60,6 @@ public class DiaryServiceImpl implements DiaryService {
     @Transactional
     public DiaryCreateResponse createDiary(Long memberId, DiaryCreateRequest request) {
         Member member = memberService.getCurrentMember(memberId);
-
-        if (!waypointRepository.existsById(request.waypointId())) {
-            throw new ServiceException(WAYPOINT_NOT_FOUND);
-        }
 
         Diary diary = Diary.builder()
             .title(request.title())
@@ -113,7 +111,7 @@ public class DiaryServiceImpl implements DiaryService {
         Map<Long, String> diaryIdToMainStickerUrl = mainStickers.stream()
             .collect(Collectors.toMap(
                 s -> s.getDiary().getId(),
-                Sticker::getImageUrl
+                s -> s.getTemplate().getImageUrl()  // 여기서 Template의 URL을 가져옴
             ));
 
         List<DiaryMonthOverviewResponse> overviewResponses = diaries.stream()
@@ -161,9 +159,7 @@ public class DiaryServiceImpl implements DiaryService {
     public DiaryUpdateResponse updateDiary(Long memberId, Long diaryId,
         DiaryUpdateRequest request) {
         Diary diary = validateAndGetDiary(memberId, diaryId);
-        if (!waypointRepository.existsById(request.waypointId())) {
-            throw new ServiceException(WAYPOINT_NOT_FOUND);
-        }
+
         diary.updateDiary(request);
         diaryRepository.save(diary);
 
@@ -198,13 +194,14 @@ public class DiaryServiceImpl implements DiaryService {
     private List<Sticker> buildStickersForDiary(Diary diary, List<StickerRequest> stickerRequests) {
         return stickerRequests.stream()
             .map(stickerRequest -> {
-                Sticker existingSticker = stickerRepository.findById(stickerRequest.stickerId())
+                StickerTemplate template = stickerTemplateRepository.findById(
+                        stickerRequest.stickerId())
                     .orElseThrow(() -> new ServiceException(STICKER_NOT_FOUND));
 
                 return Sticker.builder()
-                    .imageUrl(existingSticker.getImageUrl())
                     .main(stickerRequest.main())
                     .diary(diary)
+                    .template(template)
                     .build();
             })
             .toList();
