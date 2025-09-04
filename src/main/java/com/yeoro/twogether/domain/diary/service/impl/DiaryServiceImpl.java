@@ -1,11 +1,13 @@
 package com.yeoro.twogether.domain.diary.service.impl;
 
 import static com.yeoro.twogether.global.exception.ErrorCode.DIARY_NOT_FOUND;
+import static com.yeoro.twogether.global.exception.ErrorCode.STICKER_NOT_FOUND;
 import static com.yeoro.twogether.global.exception.ErrorCode.WAYPOINT_NOT_FOUND;
 
 import com.yeoro.twogether.domain.diary.dto.request.DiaryCreateRequest;
 import com.yeoro.twogether.domain.diary.dto.request.DiaryMonthOverviewRequest;
 import com.yeoro.twogether.domain.diary.dto.request.DiaryUpdateRequest;
+import com.yeoro.twogether.domain.diary.dto.request.StickerRequest;
 import com.yeoro.twogether.domain.diary.dto.response.DiaryCreateResponse;
 import com.yeoro.twogether.domain.diary.dto.response.DiaryDetailResponse;
 import com.yeoro.twogether.domain.diary.dto.response.DiaryMonthOverviewListResponse;
@@ -74,14 +76,8 @@ public class DiaryServiceImpl implements DiaryService {
 
         if (request.stickerListRequest() != null
             && request.stickerListRequest().stickerRequests() != null) {
-            List<Sticker> stickers = request.stickerListRequest().stickerRequests().stream()
-                .map(stickerRequest -> Sticker.builder()
-                    .imageUrl(stickerRequest.imageUrl())
-                    .main(stickerRequest.main())
-                    .diary(diary)
-                    .build()
-                )
-                .toList();
+            List<Sticker> stickers = buildStickersForDiary(diary,
+                request.stickerListRequest().stickerRequests());
 
             stickerRepository.saveAll(stickers);
         }
@@ -176,15 +172,8 @@ public class DiaryServiceImpl implements DiaryService {
             stickerRepository.deleteAll(existingStickers);
         }
 
-        List<Sticker> newStickers = request.stickerListRequest()
-            .stickerRequests()
-            .stream()
-            .map(s -> Sticker.builder()
-                .imageUrl(s.imageUrl())
-                .main(s.main())
-                .diary(diary)
-                .build())
-            .toList();
+        List<Sticker> newStickers = buildStickersForDiary(diary,
+            request.stickerListRequest().stickerRequests());
 
         stickerRepository.saveAll(newStickers);
 
@@ -204,6 +193,21 @@ public class DiaryServiceImpl implements DiaryService {
 
         List<Sticker> stickers = stickerRepository.findStickersByDiary(diary);
         stickerRepository.deleteAll(stickers);
+    }
+
+    private List<Sticker> buildStickersForDiary(Diary diary, List<StickerRequest> stickerRequests) {
+        return stickerRequests.stream()
+            .map(stickerRequest -> {
+                Sticker existingSticker = stickerRepository.findById(stickerRequest.stickerId())
+                    .orElseThrow(() -> new ServiceException(STICKER_NOT_FOUND));
+
+                return Sticker.builder()
+                    .imageUrl(existingSticker.getImageUrl())
+                    .main(stickerRequest.main())
+                    .diary(diary)
+                    .build();
+            })
+            .toList();
     }
 
     private Diary validateAndGetDiary(Long memberId, Long diaryId) {
