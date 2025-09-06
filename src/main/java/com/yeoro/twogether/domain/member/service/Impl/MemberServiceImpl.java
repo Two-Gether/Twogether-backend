@@ -257,9 +257,8 @@ public class MemberServiceImpl implements MemberService {
     @Override
     @Transactional
     public void updateProfileImage(Long memberId, String newImageUrl) {
-        Member member = getCurrentMember(memberId);
-        member.setProfileImageUrl(newImageUrl);
-        memberRepository.save(member);
+        Member m = getCurrentMember(memberId);
+        m.setProfileImageUrl(newImageUrl);
     }
 
     /**
@@ -268,9 +267,8 @@ public class MemberServiceImpl implements MemberService {
     @Override
     @Transactional
     public void updateName(Long memberId, String newName) {
-        Member member = getCurrentMember(memberId);
-        member.setName(newName);
-        memberRepository.save(member);
+        Member m = getCurrentMember(memberId);
+        m.setName(newName);
     }
 
     /**
@@ -325,23 +323,46 @@ public class MemberServiceImpl implements MemberService {
      */
     @Override
     @Transactional
-    public void updatePassword(Long memberId, String currentPassword,
-        String newPassword) {
-        Member member = getCurrentMember(memberId);
+    public void updatePassword(Long memberId, String currentPassword, String newPassword) {
+        Member m = getCurrentMember(memberId);
 
-        // LOCAL 사용자만 허용
-        if (member.getLoginPlatform() != LoginPlatform.LOCAL) {
+        if (m.getLoginPlatform() != LoginPlatform.LOCAL) {
             throw new ServiceException(ErrorCode.NOT_LOCAL_MEMBER);
         }
-
-        // 현재 비밀번호 확인
-        if (!passwordEncoder.matches(currentPassword, member.getPassword())) {
+        String encoded = m.getPassword();
+        if (encoded == null) {
+            throw new ServiceException(ErrorCode.PASSWORD_NOT_SET);
+        }
+        if (!passwordEncoder.matches(currentPassword, encoded)) {
             throw new ServiceException(ErrorCode.PASSWORD_NOT_MATCH);
         }
+        if (passwordEncoder.matches(newPassword, encoded)) {
+            throw new ServiceException(ErrorCode.PASSWORD_SAME_AS_OLD);
+        }
+        m.setPassword(passwordEncoder.encode(newPassword));
 
-        // 새 비밀번호로 변경
-        member.setPassword(passwordEncoder.encode(newPassword));
-        memberRepository.save(member);
+        // Refresh Token 무효화
+        jwtService.invalidateRefreshToken(memberId);
+        String currentAccessToken = jwtService.resolveAccessTokenFromContextOrRequest();
+        if (currentAccessToken != null) {
+            jwtService.blacklistAccessToken(currentAccessToken);
+        }
+    }
+
+    /** 성별 변경 */
+    @Override
+    @Transactional
+    public void updateGender(Long memberId, Gender gender) {
+        Member m = getCurrentMember(memberId);
+        m.setGender( gender );
+    }
+
+    /** 연령대 변경 */
+    @Override
+    @Transactional
+    public void updateAgeRange(Long memberId, String ageRange) {
+        Member m = getCurrentMember(memberId);
+        m.setAgeRange( ageRange );
     }
 
     // 로그인

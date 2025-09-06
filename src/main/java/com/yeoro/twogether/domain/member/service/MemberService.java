@@ -4,6 +4,7 @@ import com.yeoro.twogether.domain.member.dto.OauthProfile;
 import com.yeoro.twogether.domain.member.dto.request.LoginRequest;
 import com.yeoro.twogether.domain.member.dto.request.SignupRequest;
 import com.yeoro.twogether.domain.member.dto.response.LoginResponse;
+import com.yeoro.twogether.domain.member.entity.Gender;
 import com.yeoro.twogether.domain.member.entity.LoginPlatform;
 import com.yeoro.twogether.domain.member.entity.Member;
 import jakarta.servlet.http.HttpServletRequest;
@@ -117,6 +118,9 @@ public interface MemberService {
      * 비밀번호 변경 (LOCAL 사용자 전용)
      */
     void updatePassword(Long memberId, String currentPassword, String newPassword);
+
+    void updateGender(Long memberId, Gender gender);
+    void updateAgeRange(Long memberId, String ageRange);
 
     /**
      * JWT 재발급
