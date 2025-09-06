@@ -24,7 +24,6 @@ import com.yeoro.twogether.domain.member.entity.Member;
 import com.yeoro.twogether.domain.member.service.MemberService;
 import com.yeoro.twogether.domain.waypoint.entity.WaypointItem;
 import com.yeoro.twogether.domain.waypoint.repository.WaypointItemRepository;
-import com.yeoro.twogether.domain.waypoint.repository.WaypointRepository;
 import com.yeoro.twogether.global.exception.ServiceException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -47,7 +46,6 @@ public class DiaryServiceImpl implements DiaryService {
 
     private final DiaryRepository diaryRepository;
     private final StickerRepository stickerRepository;
-    private final WaypointRepository waypointRepository;
     private final WaypointItemRepository waypointItemRepository;
     private final StickerTemplateRepository stickerTemplateRepository;
 
@@ -74,7 +72,8 @@ public class DiaryServiceImpl implements DiaryService {
 
         if (request.stickerListRequest() != null
             && request.stickerListRequest().stickerRequests() != null) {
-            List<Sticker> stickers = buildStickersForDiary(diary,
+            List<Sticker> stickers = buildStickersForDiary(
+                diary,
                 request.stickerListRequest().stickerRequests());
 
             stickerRepository.saveAll(stickers);
