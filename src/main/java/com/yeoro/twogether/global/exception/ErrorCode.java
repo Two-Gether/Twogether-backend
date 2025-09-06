@@ -11,18 +11,18 @@ public enum ErrorCode {
     // User Errors
     MEMBER_NOT_FOUND("404-1", "member.not.found", HttpStatus.NOT_FOUND),
     EMAIL_ALREADY_EXISTS("409-1", "member.email.exists", HttpStatus.CONFLICT),
-    PLATFORM_ID_ALREADY_EXISTS("409-2", "member.platformId.exists", HttpStatus.CONFLICT),
     NOT_LOCAL_MEMBER("403-1", "member.not.local", HttpStatus.FORBIDDEN),
     PASSWORD_NOT_MATCH("400-3", "member.password.not.match", HttpStatus.BAD_REQUEST),
     CODE_GENERATION_FAILED("500-4", "partner.code.generation.failed",
         HttpStatus.INTERNAL_SERVER_ERROR),
     EMAIL_NOT_VERIFIED("403-2", "member.email.not.verified", HttpStatus.FORBIDDEN),
-    INVALID_PASSWORD_FORMAT("400-4", "member.password.invalid", HttpStatus.BAD_REQUEST),
     PASSWORD_NOT_VALID("400-4", "member.password.not.valid", HttpStatus.BAD_REQUEST),
     RELATIONSHIP_DATE_FORMAT_INVALID("400-20", "relationship.date.format.invalid",
         HttpStatus.BAD_REQUEST),
     RELATIONSHIP_DATE_RULE_VIOLATION("400-21", "relationship.date.rule.violation",
         HttpStatus.BAD_REQUEST),
+    PASSWORD_SAME_AS_OLD("400-5", "member.password.same.as.old", HttpStatus.BAD_REQUEST),
+    PASSWORD_NOT_SET("400-6", "member.password.not.set", HttpStatus.BAD_REQUEST),
 
     // Partner Errors
     PARTNER_CODE_INVALID("400-1", "partner.code.invalid", HttpStatus.BAD_REQUEST),

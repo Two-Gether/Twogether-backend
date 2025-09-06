@@ -94,6 +94,12 @@ public class Member extends BaseTime {
         this.relationshipStartDate = null;
     }
 
+    /**성별 변경 메서드*/
+    public void setGender(Gender gender) { this.gender = (gender == null) ? Gender.UNKNOWN : gender; }
+
+    /**나이 변경 메서드*/
+    public void setAgeRange(String ageRange) { this.ageRange = ageRange; }
+
     /**
      * 연애 시작 날짜 변경 메서드
      */
