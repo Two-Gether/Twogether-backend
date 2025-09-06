@@ -1,11 +1,12 @@
 package com.yeoro.twogether.domain.diary.service.impl;
 
 import static com.yeoro.twogether.global.exception.ErrorCode.DIARY_NOT_FOUND;
-import static com.yeoro.twogether.global.exception.ErrorCode.WAYPOINT_NOT_FOUND;
+import static com.yeoro.twogether.global.exception.ErrorCode.STICKER_NOT_FOUND;
 
 import com.yeoro.twogether.domain.diary.dto.request.DiaryCreateRequest;
 import com.yeoro.twogether.domain.diary.dto.request.DiaryMonthOverviewRequest;
 import com.yeoro.twogether.domain.diary.dto.request.DiaryUpdateRequest;
+import com.yeoro.twogether.domain.diary.dto.request.StickerRequest;
 import com.yeoro.twogether.domain.diary.dto.response.DiaryCreateResponse;
 import com.yeoro.twogether.domain.diary.dto.response.DiaryDetailResponse;
 import com.yeoro.twogether.domain.diary.dto.response.DiaryMonthOverviewListResponse;
@@ -13,15 +14,16 @@ import com.yeoro.twogether.domain.diary.dto.response.DiaryMonthOverviewResponse;
 import com.yeoro.twogether.domain.diary.dto.response.DiaryUpdateResponse;
 import com.yeoro.twogether.domain.diary.entity.Diary;
 import com.yeoro.twogether.domain.diary.entity.Sticker;
+import com.yeoro.twogether.domain.diary.entity.StickerTemplate;
 import com.yeoro.twogether.domain.diary.repository.DiaryRepository;
 import com.yeoro.twogether.domain.diary.repository.StickerRepository;
+import com.yeoro.twogether.domain.diary.repository.StickerTemplateRepository;
 import com.yeoro.twogether.domain.diary.service.DiaryService;
 import com.yeoro.twogether.domain.diary.service.mapper.DiaryMapper;
 import com.yeoro.twogether.domain.member.entity.Member;
 import com.yeoro.twogether.domain.member.service.MemberService;
 import com.yeoro.twogether.domain.waypoint.entity.WaypointItem;
 import com.yeoro.twogether.domain.waypoint.repository.WaypointItemRepository;
-import com.yeoro.twogether.domain.waypoint.repository.WaypointRepository;
 import com.yeoro.twogether.global.exception.ServiceException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,8 +46,8 @@ public class DiaryServiceImpl implements DiaryService {
 
     private final DiaryRepository diaryRepository;
     private final StickerRepository stickerRepository;
-    private final WaypointRepository waypointRepository;
     private final WaypointItemRepository waypointItemRepository;
+    private final StickerTemplateRepository stickerTemplateRepository;
 
     /**
      * 새로운 Diary를 생성합니다.
@@ -56,10 +58,6 @@ public class DiaryServiceImpl implements DiaryService {
     @Transactional
     public DiaryCreateResponse createDiary(Long memberId, DiaryCreateRequest request) {
         Member member = memberService.getCurrentMember(memberId);
-
-        if (!waypointRepository.existsById(request.waypointId())) {
-            throw new ServiceException(WAYPOINT_NOT_FOUND);
-        }
 
         Diary diary = Diary.builder()
             .title(request.title())
@@ -74,14 +72,9 @@ public class DiaryServiceImpl implements DiaryService {
 
         if (request.stickerListRequest() != null
             && request.stickerListRequest().stickerRequests() != null) {
-            List<Sticker> stickers = request.stickerListRequest().stickerRequests().stream()
-                .map(stickerRequest -> Sticker.builder()
-                    .imageUrl(stickerRequest.imageUrl())
-                    .main(stickerRequest.main())
-                    .diary(diary)
-                    .build()
-                )
-                .toList();
+            List<Sticker> stickers = buildStickersForDiary(
+                diary,
+                request.stickerListRequest().stickerRequests());
 
             stickerRepository.saveAll(stickers);
         }
@@ -117,7 +110,7 @@ public class DiaryServiceImpl implements DiaryService {
         Map<Long, String> diaryIdToMainStickerUrl = mainStickers.stream()
             .collect(Collectors.toMap(
                 s -> s.getDiary().getId(),
-                Sticker::getImageUrl
+                s -> s.getTemplate().getImageUrl()  // 여기서 Template의 URL을 가져옴
             ));
 
         List<DiaryMonthOverviewResponse> overviewResponses = diaries.stream()
@@ -165,9 +158,7 @@ public class DiaryServiceImpl implements DiaryService {
     public DiaryUpdateResponse updateDiary(Long memberId, Long diaryId,
         DiaryUpdateRequest request) {
         Diary diary = validateAndGetDiary(memberId, diaryId);
-        if (!waypointRepository.existsById(request.waypointId())) {
-            throw new ServiceException(WAYPOINT_NOT_FOUND);
-        }
+
         diary.updateDiary(request);
         diaryRepository.save(diary);
 
@@ -176,15 +167,8 @@ public class DiaryServiceImpl implements DiaryService {
             stickerRepository.deleteAll(existingStickers);
         }
 
-        List<Sticker> newStickers = request.stickerListRequest()
-            .stickerRequests()
-            .stream()
-            .map(s -> Sticker.builder()
-                .imageUrl(s.imageUrl())
-                .main(s.main())
-                .diary(diary)
-                .build())
-            .toList();
+        List<Sticker> newStickers = buildStickersForDiary(diary,
+            request.stickerListRequest().stickerRequests());
 
         stickerRepository.saveAll(newStickers);
 
@@ -204,6 +188,22 @@ public class DiaryServiceImpl implements DiaryService {
 
         List<Sticker> stickers = stickerRepository.findStickersByDiary(diary);
         stickerRepository.deleteAll(stickers);
+    }
+
+    private List<Sticker> buildStickersForDiary(Diary diary, List<StickerRequest> stickerRequests) {
+        return stickerRequests.stream()
+            .map(stickerRequest -> {
+                StickerTemplate template = stickerTemplateRepository.findById(
+                        stickerRequest.stickerId())
+                    .orElseThrow(() -> new ServiceException(STICKER_NOT_FOUND));
+
+                return Sticker.builder()
+                    .main(stickerRequest.main())
+                    .diary(diary)
+                    .template(template)
+                    .build();
+            })
+            .toList();
     }
 
     private Diary validateAndGetDiary(Long memberId, Long diaryId) {

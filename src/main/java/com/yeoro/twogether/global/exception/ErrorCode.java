@@ -56,7 +56,10 @@ public enum ErrorCode {
 
     //Diary Errors
     DIARY_NOT_FOUND("407-01", "diary.not.found", HttpStatus.NOT_FOUND),
-    DIARY_OWNERSHIP_MISMATCH("407-02", "diary.ownership.mismatch", HttpStatus.FORBIDDEN);
+    DIARY_OWNERSHIP_MISMATCH("407-02", "diary.ownership.mismatch", HttpStatus.FORBIDDEN),
+
+    //Sticker Errors
+    STICKER_NOT_FOUND("408-01", "sticker.not.found", HttpStatus.NOT_FOUND);
 
 
     private final String code;

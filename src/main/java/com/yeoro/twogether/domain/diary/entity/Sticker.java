@@ -23,19 +23,20 @@ public class Sticker {
     private Long id;
 
     @Column
-    private String imageUrl;
-
-    @Column
     private boolean main;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "diary_id")
     private Diary diary;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "template_id")
+    private StickerTemplate template;
+
     @Builder
-    public Sticker(String imageUrl, boolean main, Diary diary) {
-        this.imageUrl = imageUrl;
+    public Sticker(boolean main, Diary diary, StickerTemplate template) {
         this.main = main;
         this.diary = diary;
+        this.template = template;
     }
 }

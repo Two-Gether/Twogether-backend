@@ -40,8 +40,8 @@ public class DiaryMapper {
 
     public StickerResponse toStickerResponse(Sticker sticker) {
         return StickerResponse.builder()
-            .id(sticker.getId())
-            .imageUrl(sticker.getImageUrl())
+            .id(sticker.getTemplate().getId())
+            .imageUrl(sticker.getTemplate().getImageUrl())
             .main(sticker.isMain())
             .build();
     }
