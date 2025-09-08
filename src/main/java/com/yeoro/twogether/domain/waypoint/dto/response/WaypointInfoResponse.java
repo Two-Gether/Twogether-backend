@@ -6,6 +6,7 @@ import lombok.Builder;
 public record WaypointInfoResponse(
     Long itemId,
     String name,
+    String address,
     String imageUrl,
     String memo,
     int order
