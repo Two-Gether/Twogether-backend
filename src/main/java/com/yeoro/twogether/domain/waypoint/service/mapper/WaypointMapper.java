@@ -38,6 +38,7 @@ public class WaypointMapper {
         return WaypointInfoResponse.builder()
             .itemId(waypointItem.getId())
             .name(waypointItem.getName())
+            .address(waypointItem.getAddress())
             .imageUrl(waypointItem.getImageUrl())
             .order(waypointItem.getItemOrder())
             .memo(waypointItem.getMemo())
