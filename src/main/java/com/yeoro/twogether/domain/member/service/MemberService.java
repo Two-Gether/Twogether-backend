@@ -128,4 +128,6 @@ public interface MemberService {
     LoginResponse refreshTokens(HttpServletRequest request, HttpServletResponse response);
 
     LoginResponse updateRelationshipStartDate(Long memberId, String date, HttpServletRequest request, HttpServletResponse response);
+
+    void deleteMember(Long memberId);
 }

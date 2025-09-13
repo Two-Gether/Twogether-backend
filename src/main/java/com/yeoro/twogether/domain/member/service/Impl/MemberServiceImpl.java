@@ -1,5 +1,7 @@
 package com.yeoro.twogether.domain.member.service.Impl;
 
+import com.yeoro.twogether.domain.diary.repository.DiaryRepository;
+import com.yeoro.twogether.domain.diary.repository.StickerRepository;
 import com.yeoro.twogether.domain.member.dto.OauthProfile;
 import com.yeoro.twogether.domain.member.dto.request.LoginRequest;
 import com.yeoro.twogether.domain.member.dto.request.SignupRequest;
@@ -11,8 +13,12 @@ import com.yeoro.twogether.domain.member.repository.MemberRepository;
 import com.yeoro.twogether.domain.member.service.EmailVerificationService;
 import com.yeoro.twogether.domain.member.service.MemberService;
 import com.yeoro.twogether.domain.member.service.OauthService;
+import com.yeoro.twogether.domain.place.repository.PlaceRepository;
+import com.yeoro.twogether.domain.waypoint.repository.WaypointItemRepository;
+import com.yeoro.twogether.domain.waypoint.repository.WaypointRepository;
 import com.yeoro.twogether.global.exception.ErrorCode;
 import com.yeoro.twogether.global.exception.ServiceException;
+import com.yeoro.twogether.global.service.s3.HighlightS3Service;
 import com.yeoro.twogether.global.store.PartnerCodeStore;
 import com.yeoro.twogether.global.token.JwtService;
 import com.yeoro.twogether.global.token.TokenPair;
@@ -26,8 +32,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.UUID;
 
 import static com.yeoro.twogether.global.exception.ErrorCode.MEMBER_NOT_FOUND;
@@ -44,10 +52,17 @@ public class MemberServiceImpl implements MemberService {
     private final PartnerCodeStore partnerCodeStore;
     private final EmailVerificationService emailVerificationService;
     private final JwtService jwtService;
+    private final HighlightS3Service highlightS3Service;
+    private final PlaceRepository placeRepository;
+    private final DiaryRepository diaryRepository;
+    private final WaypointRepository waypointRepository;
+    private final WaypointItemRepository waypointItemRepository;
+    private final MemberHardDeleteTx memberHardDeleteTx;
+    private final StickerRepository stickerRepository;
 
-    /**
-     * 일반 회원가입
-     */
+
+
+
     /**
      * 일반 회원가입
      */
@@ -183,20 +198,38 @@ public class MemberServiceImpl implements MemberService {
     @Override
     @Transactional
     public String generatePartnerCode(Long memberId) {
-        String code;
-        int maxRetry = 5;
+        // 동일 사용자 재요청이면 기존 코드 그대로 반환
+        String existing = partnerCodeStore.findCodeByMember(memberId);
+        if (existing != null) return existing;
 
-        int attempt = 0;
-        do {
-            if (attempt++ >= maxRetry) {
-                throw new ServiceException(ErrorCode.CODE_GENERATION_FAILED);
-            }
-            code = CodeGenerator.generatePartnerCode(); // 이건 그대로
-        } while (partnerCodeStore.exists(code)); // Redis 중복 확인
+        // 동시성 제어 — 짧은 락
+        boolean locked = partnerCodeStore.tryLock(memberId, 5); // 5초 락
+        try {
+            // 더블 체크 (락 획득 후 재확인)
+            existing = partnerCodeStore.findCodeByMember(memberId);
+            if (existing != null) return existing;
 
-        partnerCodeStore.save(code, memberId); // TTL 3분
-        return code;
+            String code;
+            int maxRetry = 5;
+            int attempt = 0;
+            do {
+                if (attempt++ >= maxRetry) {
+                    throw new ServiceException(ErrorCode.CODE_GENERATION_FAILED);
+                }
+                code = CodeGenerator.generatePartnerCode();
+            } while (partnerCodeStore.existsCode(code)); // 코드 자체의 충돌 방지
+
+            // 양방향 저장(덮어쓰지 않음, TTL 동일)
+            partnerCodeStore.saveBoth(code, memberId);
+
+            // 최종 확인(경쟁 상황에서 기존값이 들어갔으면 그 값 사용)
+            String finallySaved = partnerCodeStore.findCodeByMember(memberId);
+            return finallySaved != null ? finallySaved : code;
+        } finally {
+            if (locked) partnerCodeStore.unlock(memberId);
+        }
     }
+
 
     /**
      * 입력받은 코드로 파트너 연결 연결 성공 시 JWT 갱신 및 LoginResponse 반환
@@ -515,4 +548,55 @@ public class MemberServiceImpl implements MemberService {
         return createLoginResponse(memberId, request, response);
     }
 
+    /**
+     * 회원 탈퇴
+     */
+    @Override
+    @Transactional
+    public void deleteMember(Long memberId) {
+        Member me = memberRepository.findByIdWithPartner(memberId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.MEMBER_NOT_FOUND));
+
+        List<Long> placeIds    = placeRepository.findIdsByMemberId(memberId);
+        List<Long> diaryIds    = diaryRepository.findIdsByMemberId(memberId);
+        List<Long> waypointIds = waypointRepository.findIdsByMemberId(memberId);
+
+        // S3 먼저 확인
+        if (!placeIds.isEmpty()) {
+            placeRepository.findAllById(placeIds).forEach(p -> {
+                String key = extractKey(p.getImageUrl());
+                if (key != null && !key.isBlank()) highlightS3Service.delete(key);
+            });
+        }
+        if (!waypointIds.isEmpty()) {
+            waypointItemRepository.findAllByWaypoint_IdIn(waypointIds).forEach(item -> {
+                String key = extractKey(item.getImageUrl());
+                if (key != null && !key.isBlank()) highlightS3Service.delete(key);
+            });
+        }
+
+        // DB 삭제 (동일 트랜잭션 안으로 들어감)
+        memberHardDeleteTx.run(me, placeIds, diaryIds, waypointIds);
+    }
+
+
+    /**
+     * imageUrl 컬럼에 "Key"만 저장되면 그대로 반환.
+     * 혹시 전체 URL이 저장되어 있다면 path에서 Key를 추출.
+     */
+    private static String extractKey(String imageUrlOrKey) {
+        // Key 형태면 그대로
+        if (!imageUrlOrKey.startsWith("http://") && !imageUrlOrKey.startsWith("https://")) {
+            return imageUrlOrKey;
+        }
+        try {
+            URI uri = URI.create(imageUrlOrKey);
+            String path = uri.getPath(); // "/folder/file.png"
+            return (path != null && path.startsWith("/")) ? path.substring(1) : path;
+        } catch (Exception e) {
+            // URL 파싱 실패 → 원문 사용(레거시 대비)
+            return imageUrlOrKey;
+        }
+    }
 }
+

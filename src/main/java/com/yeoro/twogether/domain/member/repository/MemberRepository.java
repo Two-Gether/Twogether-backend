@@ -14,4 +14,8 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     @Query("select m from Member m left join fetch m.partner where m.id = :id")
     Optional<Member> findByIdWithPartner(@Param("id") Long id);
+
+    /** 상대가 나를 partner로 들고 있는 경우(역참조) 찾기 */
+    Optional<Member> findByPartner_Id(Long partnerId);
+
 }

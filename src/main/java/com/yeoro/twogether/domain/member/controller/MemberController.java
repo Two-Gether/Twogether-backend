@@ -175,6 +175,13 @@ public class MemberController {
         return ResponseEntity.ok("비밀번호가 성공적으로 변경되었습니다. 다시 로그인해 주세요.");
     }
 
+    /** 내 계정 삭제 */
+    @DeleteMapping("/me")
+    public ResponseEntity<String> deleteMe(@Login Long memberId) {
+        memberService.deleteMember(memberId);
+        return ResponseEntity.ok("회원탈퇴가 완료되었습니다.");
+    }
+
     /**
      * JWT 재발급
      * 쿠키의 refreshToken을 읽어 검증하고, DB 최신 데이터로 JWT 재발급하여 응답 바디/헤더/쿠키에 내려줌
