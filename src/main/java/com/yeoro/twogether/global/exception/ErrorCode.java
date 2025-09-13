@@ -51,7 +51,7 @@ public enum ErrorCode {
     PLACE_TAG_LIMIT_EXCEEDED("400-11", "place.tag.limit.exceeded", HttpStatus.BAD_REQUEST),
     FILE_UPLOAD_FAILED("500-20", "file.upload.failed", HttpStatus.INTERNAL_SERVER_ERROR),
     FILE_DOWNLOAD_FAILED("500-21", "file.download.failed", HttpStatus.INTERNAL_SERVER_ERROR),
-
+    INVALID_FILE("500-22","invalied.file",HttpStatus.INTERNAL_SERVER_ERROR),
     // Diary Errors
     DIARY_NOT_FOUND("407-01", "diary.not.found", HttpStatus.NOT_FOUND),
     DIARY_OWNERSHIP_MISMATCH("407-02", "diary.ownership.mismatch", HttpStatus.FORBIDDEN),

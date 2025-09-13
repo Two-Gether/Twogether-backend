@@ -9,6 +9,7 @@ import com.yeoro.twogether.domain.member.entity.LoginPlatform;
 import com.yeoro.twogether.domain.member.entity.Member;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 사용자 서비스
@@ -97,7 +98,9 @@ public interface MemberService {
     /**
      * 프로필 이미지 수정
      */
-    void updateProfileImage(Long memberId, String newImageUrl);
+    void updateProfileImage(Long memberId, MultipartFile image);
+
+    java.net.URL getProfileImagePresignedUrl(Long memberId);
 
     /**
      * 이름 수정

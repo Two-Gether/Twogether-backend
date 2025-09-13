@@ -14,8 +14,12 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.net.URL;
 
 @Slf4j
 @RestController
@@ -126,17 +130,18 @@ public class MemberController {
     /**사용자 정보 조회 API*/
     @GetMapping("/me")
     public MemberInfoResponse getMyInfo(@Login Long memberId) {
-        // @Login에서 사용자 정보 추출
         Member member = memberService.getCurrentMember(memberId);
-
-        return MemberInfoResponse.of(member);
+        URL presigned = memberService.getProfileImagePresignedUrl(memberId);
+        return MemberInfoResponse.ofResolved(member, presigned != null ? presigned.toString() : null);
     }
 
     /**프로필 이미지 변경 API*/
-    @PutMapping("/me/profile-image")
-    public ResponseEntity<String> updateProfileImage(@Login Long memberId,
-                                                   @RequestBody @Valid UpdateProfileImageRequest req) {
-        memberService.updateProfileImage(memberId, req.imageUrl());
+    @PutMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> updateProfileImage(
+            @Login Long memberId,
+            @RequestPart("image") MultipartFile image
+    ) {
+        memberService.updateProfileImage(memberId, image);
         return ResponseEntity.ok("프로필 이미지가 성공적으로 변경되었습니다.");
     }
 

@@ -27,5 +27,11 @@ public class AwsProperties {
 
         private final String publicBucket;
         private final String privateBucket;
+        private final String highlightsPrefix;
+        private final Integer presignTtlSeconds;
+
+        // yml에 없으면 기본값 "profile/" 사용
+        public String profilePrefix() { return "profile/"; }
+        public int presignTtlSecondsOrDefault() { return presignTtlSeconds != null ? presignTtlSeconds : 10800; }
     }
 }

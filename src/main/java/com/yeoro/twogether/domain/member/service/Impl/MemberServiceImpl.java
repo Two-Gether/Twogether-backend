@@ -1,7 +1,6 @@
 package com.yeoro.twogether.domain.member.service.Impl;
 
 import com.yeoro.twogether.domain.diary.repository.DiaryRepository;
-import com.yeoro.twogether.domain.diary.repository.StickerRepository;
 import com.yeoro.twogether.domain.member.dto.OauthProfile;
 import com.yeoro.twogether.domain.member.dto.request.LoginRequest;
 import com.yeoro.twogether.domain.member.dto.request.SignupRequest;
@@ -19,6 +18,7 @@ import com.yeoro.twogether.domain.waypoint.repository.WaypointRepository;
 import com.yeoro.twogether.global.exception.ErrorCode;
 import com.yeoro.twogether.global.exception.ServiceException;
 import com.yeoro.twogether.global.service.s3.HighlightS3Service;
+import com.yeoro.twogether.global.service.s3.ProfileS3Service;
 import com.yeoro.twogether.global.store.PartnerCodeStore;
 import com.yeoro.twogether.global.token.JwtService;
 import com.yeoro.twogether.global.token.TokenPair;
@@ -28,11 +28,18 @@ import com.yeoro.twogether.global.util.PasswordValidator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.net.URI;
+import java.net.URL;
+import java.security.MessageDigest;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
@@ -40,6 +47,7 @@ import java.util.UUID;
 
 import static com.yeoro.twogether.global.exception.ErrorCode.MEMBER_NOT_FOUND;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -58,7 +66,7 @@ public class MemberServiceImpl implements MemberService {
     private final WaypointRepository waypointRepository;
     private final WaypointItemRepository waypointItemRepository;
     private final MemberHardDeleteTx memberHardDeleteTx;
-    private final StickerRepository stickerRepository;
+    private final ProfileS3Service profileS3Service;
 
 
 
@@ -279,8 +287,9 @@ public class MemberServiceImpl implements MemberService {
      * 현재 로그인한 사용자 정보 조회
      */
     @Override
+    @Transactional(readOnly = true)
     public Member getCurrentMember(Long memberId) {
-        return memberRepository.findByIdWithPartner(memberId)
+        return memberRepository.findById(memberId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.MEMBER_NOT_FOUND));
     }
 
@@ -289,9 +298,97 @@ public class MemberServiceImpl implements MemberService {
      */
     @Override
     @Transactional
-    public void updateProfileImage(Long memberId, String newImageUrl) {
+    public void updateProfileImage(Long memberId, MultipartFile image) {
+        if (image == null || image.isEmpty()) {
+            throw new ServiceException(ErrorCode.INVALID_FILE);
+        }
+
         Member m = getCurrentMember(memberId);
-        m.setProfileImageUrl(newImageUrl);
+        String currentKey = m.getProfileImageUrl();
+
+        try {
+            byte[] bytes = image.getBytes();
+            String newSha = sha256Hex(bytes);
+
+            // 동일 파일이면 스킵
+            boolean same = false;
+            if (currentKey != null && !currentKey.isBlank()) {
+                try {
+                    String oldSha = profileS3Service.headSha256(currentKey);
+                    same = (oldSha != null && oldSha.equalsIgnoreCase(newSha));
+                } catch (Exception e) {
+                    log.warn("[profile] head meta failed, proceed upload: {}", currentKey);
+                }
+            }
+            if (same) return;
+
+            // 새 업로드
+            var up = profileS3Service.upload(
+                    memberId,
+                    image.getOriginalFilename(),
+                    image.getContentType(),
+                    bytes
+            );
+            String newKey = up.key();
+
+            // 롤백 시 새 업로드 삭제
+            registerRollbackDelete(newKey);
+
+            // 커밋 후 기존 이미지 정리
+            deleteOldAfterCommit(currentKey, newKey);
+
+            // DB 반영
+            m.setProfileImageUrl(newKey);
+
+        } catch (IOException e) {
+            throw new ServiceException(ErrorCode.FILE_UPLOAD_FAILED);
+        }
+    }
+
+    // MemberServiceImpl: ProfileS3Service 사용
+    @Override
+    public URL getProfileImagePresignedUrl(Long memberId) {
+        Member m = getCurrentMember(memberId);
+        String key = m.getProfileImageUrl();
+        if (key == null || key.isBlank()) return null;
+        String url = profileS3Service.presignedGetUrl(key);
+        try { return new URL(url); }
+        catch (Exception e) { throw new ServiceException(ErrorCode.FILE_DOWNLOAD_FAILED); }
+    }
+
+    private void deleteOldAfterCommit(String oldKey, String newKey) {
+        if (oldKey == null || oldKey.isBlank() || oldKey.equals(newKey)) return;
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                profileS3Service.deleteQuietly(oldKey);
+            }
+        });
+    }
+
+    private void registerRollbackDelete(String key) {
+        if (key == null || key.isBlank()) return;
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
+                    profileS3Service.deleteQuietly(key);
+                    log.warn("[S3] rolled back, deleted orphan profile upload: {}", key);
+                }
+            }
+        });
+    }
+
+    private static String sha256Hex(byte[] bytes) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] d = md.digest(bytes);
+            StringBuilder sb = new StringBuilder(d.length * 2);
+            for (byte b : d) sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /**
