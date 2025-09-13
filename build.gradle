@@ -66,8 +66,9 @@ dependencies {
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
     // AWS S3
-    implementation platform('software.amazon.awssdk:bom:2.26.0')
-    implementation 'software.amazon.awssdk:s3'
+    implementation platform('software.amazon.awssdk:bom:2.33.5')
+    implementation "software.amazon.awssdk:s3"
+    implementation "software.amazon.awssdk:sts"
 
     // 테스트
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
