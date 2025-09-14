@@ -91,10 +91,15 @@ public class DiaryServiceImpl implements DiaryService {
     public DiaryMonthOverviewListResponse getMonthOverviewDiary(Long memberId,
         DiaryMonthOverviewRequest request) {
         Member member = memberService.getCurrentMember(memberId);
+        Member partner = member.getPartner();
+
+        List<Member> meAndPartner = partner != null
+            ? List.of(member, partner)
+            : List.of(member);
 
         // 해당 월의 다이어리 조회
-        List<Diary> diaries = diaryRepository.findByMemberAndStartOrEndDateInMonth(
-            member,
+        List<Diary> diaries = diaryRepository.findByMembersAndDateRange(
+            meAndPartner,
             request.startDate(),
             request.endDate()
         );
@@ -207,10 +212,14 @@ public class DiaryServiceImpl implements DiaryService {
     }
 
     private Diary validateAndGetDiary(Long memberId, Long diaryId) {
+        Member member = memberService.getCurrentMember(memberId);
+        Member partner = member.getPartner();
+
         Diary diary = diaryRepository.findById(diaryId)
             .orElseThrow(() -> new ServiceException(DIARY_NOT_FOUND));
-        Member member = memberService.getCurrentMember(memberId);
-        diary.validateMemberOwnsDiary(member);
+
+        diary.validateOwnership(member, partner);
+
         return diary;
     }
 }
