@@ -1,18 +1,16 @@
 package com.yeoro.twogether.domain.place.service;
 
-import com.yeoro.twogether.domain.place.dto.request.PlaceCreateRequest;
-import com.yeoro.twogether.domain.place.dto.request.PlaceUpdateRequest;
 import com.yeoro.twogether.domain.place.dto.response.PlaceCreateResponse;
-import com.yeoro.twogether.domain.place.dto.response.PlaceOneSearchRequest;
 import com.yeoro.twogether.domain.place.dto.response.PlaceResponse;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
 public interface PlaceService {
 
-    PlaceCreateResponse createPlace(Long memberId, PlaceCreateRequest request);
+    PlaceCreateResponse createPlace(Long memberId, String metaJson, MultipartFile image);
     List<PlaceResponse> getPlace(String address);
     void deletePlace(Long memberId, Long placeId);
-    PlaceResponse getOnePlace(Long memberId, PlaceOneSearchRequest request);
-    PlaceResponse updatePlace(Long memberId, PlaceUpdateRequest request);
+    PlaceResponse getOnePlace(Long memberId, Long placeId);
+    PlaceResponse updatePlace(Long memberId, Long placeId, String metaJson, MultipartFile image);
 }

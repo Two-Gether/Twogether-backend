@@ -10,25 +10,31 @@ import java.time.LocalDateTime;
 @Getter
 @Builder
 public class ErrorResponse {
-    private final LocalDateTime timestamp; // 발생 시간Add commentMore actions
-    private final int status; // HTTP 상태 코드
-    private final String code; // 비즈니스 에러 코드
-    private final String message; // 클라이언트 표시용 메시지
-    private final String path; // 요청 경로
+    private final LocalDateTime timestamp;
+    private final int status;
+    private final String code;
+    private final String message;
+    private final String path;
 
-    /**
-     * 메시지 프로퍼티 변환 -> ErrorResponse 의 팩토리 메서드
-     */
-    public static ErrorResponse of(
-            ServiceException e,
-            HttpServletRequest request,
-            MessageService messageService
-    ) {
-        String clientMessage = messageService.getMessage(e.getErrorCode().getMessageCode());
+    // ServiceException 기반
+    public static ErrorResponse of(ServiceException e, HttpServletRequest request, MessageService ms) {
+        String clientMessage = ms.getMessage(e.getMessageCode());
         return ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
-                .status(e.getErrorCode().getStatus().value()) // HttpStatus에서 int 값 추출
+                .status(e.getErrorCode().getStatus().value())
                 .code(e.getErrorCode().getCode())
+                .message(clientMessage)
+                .path(request.getRequestURI())
+                .build();
+    }
+
+    // 직접 ErrorCode를 지정하는 경우
+    public static ErrorResponse of(ErrorCode ec, HttpServletRequest request, MessageService ms) {
+        String clientMessage = ms.getMessage(ec.getMessageCode());
+        return ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(ec.getStatus().value())
+                .code(ec.getCode())
                 .message(clientMessage)
                 .path(request.getRequestURI())
                 .build();

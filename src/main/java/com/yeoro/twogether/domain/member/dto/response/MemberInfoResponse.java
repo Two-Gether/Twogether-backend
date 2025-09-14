@@ -13,7 +13,7 @@ public record MemberInfoResponse(
         String name,            // 내 이름
         String myNickname,      // 파트너가 '나'에게 준 애칭 (me.nickname)
 
-        String profileImageUrl,
+        String profileImageUrl, // S3 키 or presigned URL
         Gender gender,          // male/female/unknown
         String ageRange,        // 예: "20"
         String phoneNumber,
@@ -25,6 +25,7 @@ public record MemberInfoResponse(
 
         LocalDate relationshipStartDate
 ) {
+    /** 엔티티 값을 그대로 사용 (profileImageUrl에는 S3 key가 들어감) */
     public static MemberInfoResponse of(Member me) {
         Long partnerId = me.getPartnerId();
         Member partner = me.getPartner();
@@ -36,9 +37,34 @@ public record MemberInfoResponse(
                 me.getId(),
                 me.getEmail(),
                 me.getName(),
-                me.getNickname(),           // myNickname
-                me.getProfileImageUrl(),
-                me.getGender(),                 // Gender -> "male"/"female"/"unknown"로 JSON 직렬화
+                me.getNickname(),                  // myNickname
+                me.getProfileImageUrl(),           // S3 key 그대로
+                me.getGender(),
+                me.getAgeRange(),
+                me.getPhoneNumber(),
+                me.getLoginPlatform(),
+                partnerId,
+                partnerName,
+                partnerNickname,
+                me.getRelationshipStartDate()
+        );
+    }
+
+    /** presigned URL을 주입해 응답 (profileImageUrl에 presigned URL이 들어감) */
+    public static MemberInfoResponse ofResolved(Member me, String resolvedProfileUrl) {
+        Long partnerId = me.getPartnerId();
+        Member partner = me.getPartner();
+
+        String partnerName = (partner != null) ? partner.getName() : null;
+        String partnerNickname = (partner != null) ? partner.getNickname() : null;
+
+        return new MemberInfoResponse(
+                me.getId(),
+                me.getEmail(),
+                me.getName(),
+                me.getNickname(),                  // myNickname
+                resolvedProfileUrl,                // presigned URL
+                me.getGender(),
                 me.getAgeRange(),
                 me.getPhoneNumber(),
                 me.getLoginPlatform(),
