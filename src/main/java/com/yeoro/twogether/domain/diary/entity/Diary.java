@@ -58,10 +58,14 @@ public class Diary {
         this.member = member;
     }
 
-    public void validateMemberOwnsDiary(Member member) {
-        if (this.member != member) {
+    public void validateOwnership(Member member, Member partner) {
+        if (!isOwnedBy(member) && !isOwnedBy(partner)) {
             throw new ServiceException(DIARY_OWNERSHIP_MISMATCH);
         }
+    }
+
+    public boolean isOwnedBy(Member member) {
+        return this.member.equals(member);
     }
 
     public void updateDiary(DiaryUpdateRequest request) {
