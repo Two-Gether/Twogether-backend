@@ -33,11 +33,13 @@ jobs:
           key: ${{ secrets.AWS_SSH_KEY }}
           script: |
             echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
-            
             echo "${{ secrets.DOTENV_FILE_BASE64 }}" | base64 --decode > .env
             
+            sudo certbot certonly --standalone \
+              -d twogether.cloud -d www.twogether.cloud \
+              --non-interactive --agree-tos -m ljb4582@gmail.com
+
             docker compose down || true
             docker image prune -a -f
             docker compose pull
             docker compose up -d
-            
