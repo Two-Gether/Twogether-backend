@@ -45,14 +45,25 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx:/etc/nginx/conf.d:ro
-      - /etc/letsencrypt:/etc/nginx/certs:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/certs:/etc/letsencrypt
+      - ./nginx/html:/var/www/html
     depends_on:
       - twogether-spring
     restart: unless-stopped
     networks:
       - app-network
 
+    certbot:
+      image: certbot/certbot
+      container_name: certbot
+      volumes:
+        - ./nginx/certs:/etc/letsencrypt
+        - ./nginx/html:/var/www/html
+      entrypoint: "/bin/sh -c 'trap exit TERM; while :; do sleep 12h & wait $${!}; certbot renew; done;'"
+      restart: unless-stopped
+      networks:
+        - app-network
 volumes:
   mysql-data:
   redis-data:
