@@ -38,32 +38,6 @@ services:
     networks:
       - app-network
 
-  nginx:
-    image: nginx:latest
-    container_name: nginx_proxy
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./nginx/certs:/etc/letsencrypt
-      - ./nginx/html:/var/www/html
-    depends_on:
-      - twogether-spring
-    restart: unless-stopped
-    networks:
-      - app-network
-
-  certbot:
-    image: certbot/certbot
-    container_name: certbot
-    volumes:
-      - ./nginx/certs:/etc/letsencrypt
-      - ./nginx/html:/var/www/html
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do sleep 12h & wait $${!}; certbot renew; done;'"
-    restart: unless-stopped
-    networks:
-      - app-network
 volumes:
   mysql-data:
   redis-data:
