@@ -1,7 +1,6 @@
 package com.yeoro.twogether.domain.diary.controller;
 
 import com.yeoro.twogether.domain.diary.dto.request.DiaryCreateRequest;
-import com.yeoro.twogether.domain.diary.dto.request.DiaryMonthOverviewRequest;
 import com.yeoro.twogether.domain.diary.dto.request.DiaryUpdateRequest;
 import com.yeoro.twogether.domain.diary.dto.response.DiaryCreateResponse;
 import com.yeoro.twogether.domain.diary.dto.response.DiaryDetailResponse;
@@ -9,6 +8,7 @@ import com.yeoro.twogether.domain.diary.dto.response.DiaryMonthOverviewListRespo
 import com.yeoro.twogether.domain.diary.dto.response.DiaryUpdateResponse;
 import com.yeoro.twogether.domain.diary.service.DiaryService;
 import com.yeoro.twogether.global.argumentResolver.Login;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -44,17 +45,20 @@ public class DiaryController {
     }
 
     /**
-     * 특정 월의 Diary 목록을 조회합니다.
+     * 특정 기간의 Diary 목록을 조회합니다.
      *
-     * @param memberId 로그인된 회원 ID (커스텀 리졸버 @Login 이용)
-     * @param request  월별 Diary 조회 요청 정보 (연, 월 포함)
-     * @return 해당 월의 Diary 요약 정보 리스트
+     * @param memberId  로그인된 회원 ID (커스텀 리졸버 @Login 이용)
+     * @param startDate 조회 시작 날짜 (yyyy-MM-dd 형식)
+     * @param endDate   조회 종료 날짜 (yyyy-MM-dd 형식)
+     * @return 지정된 기간의 Diary 요약 정보 리스트
      */
     @GetMapping
     public DiaryMonthOverviewListResponse getMonthOverviewDiary(
         @Login Long memberId,
-        @RequestBody DiaryMonthOverviewRequest request) {
-        return diaryService.getMonthOverviewDiary(memberId, request);
+        @RequestParam LocalDate startDate,
+        @RequestParam LocalDate endDate
+    ) {
+        return diaryService.getMonthOverviewDiary(memberId, startDate, endDate);
     }
 
     /**
