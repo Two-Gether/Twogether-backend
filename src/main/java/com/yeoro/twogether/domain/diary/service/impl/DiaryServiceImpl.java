@@ -4,7 +4,6 @@ import static com.yeoro.twogether.global.exception.ErrorCode.DIARY_NOT_FOUND;
 import static com.yeoro.twogether.global.exception.ErrorCode.STICKER_NOT_FOUND;
 
 import com.yeoro.twogether.domain.diary.dto.request.DiaryCreateRequest;
-import com.yeoro.twogether.domain.diary.dto.request.DiaryMonthOverviewRequest;
 import com.yeoro.twogether.domain.diary.dto.request.DiaryUpdateRequest;
 import com.yeoro.twogether.domain.diary.dto.request.StickerRequest;
 import com.yeoro.twogether.domain.diary.dto.response.DiaryCreateResponse;
@@ -25,6 +24,7 @@ import com.yeoro.twogether.domain.member.service.MemberService;
 import com.yeoro.twogether.domain.waypoint.entity.WaypointItem;
 import com.yeoro.twogether.domain.waypoint.repository.WaypointItemRepository;
 import com.yeoro.twogether.global.exception.ServiceException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -88,8 +88,9 @@ public class DiaryServiceImpl implements DiaryService {
      * - 시작일 또는 종료일이 요청 기간에 속하는 Diary를 조회 - 각 Diary에 대해 대표(main) Sticker를 매핑
      */
     @Override
-    public DiaryMonthOverviewListResponse getMonthOverviewDiary(Long memberId,
-        DiaryMonthOverviewRequest request) {
+    public DiaryMonthOverviewListResponse getMonthOverviewDiary(
+        Long memberId, LocalDate startDate, LocalDate endDate
+    ) {
         Member member = memberService.getCurrentMember(memberId);
         Member partner = member.getPartner();
 
@@ -100,8 +101,8 @@ public class DiaryServiceImpl implements DiaryService {
         // 해당 월의 다이어리 조회
         List<Diary> diaries = diaryRepository.findByMembersAndDateRange(
             meAndPartner,
-            request.startDate(),
-            request.endDate()
+            startDate,
+            endDate
         );
 
         if (diaries.isEmpty()) {
