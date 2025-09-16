@@ -1,6 +1,7 @@
 package com.yeoro.twogether.global.config;
 
 import com.yeoro.twogether.global.filter.JwtAuthenticationFilter;
+import java.util.Arrays;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,14 +18,15 @@ import org.springframework.security.web.header.writers.frameoptions.XFrameOption
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
-
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     @Value("${custom.site.frontUrl}")
     private String frontUrl;
+
+    @Value("${custom.site.vercelUrl}")
+    private String vercelUrl;
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
@@ -35,30 +37,30 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .authorizeHttpRequests(authz -> authz
-                        .requestMatchers(
-                                "/",
-                                "/login/**",
-                                "/api/v1/member/**",
-                                "/error",
-                                "/h2-console/**"
-                        ).permitAll()
-                        .anyRequest().authenticated()
-                )
-                .headers((headers) -> headers
-                        .addHeaderWriter(new XFrameOptionsHeaderWriter(
-                                XFrameOptionsHeaderWriter.XFrameOptionsMode.SAMEORIGIN)))
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(sessionManagement -> {
-                    sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-                })
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .authorizeHttpRequests(authz -> authz
+                .requestMatchers(
+                    "/",
+                    "/login/**",
+                    "/api/v1/member/**",
+                    "/error",
+                    "/h2-console/**"
+                ).permitAll()
+                .anyRequest().authenticated()
+            )
+            .headers((headers) -> headers
+                .addHeaderWriter(new XFrameOptionsHeaderWriter(
+                    XFrameOptionsHeaderWriter.XFrameOptionsMode.SAMEORIGIN)))
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(sessionManagement -> {
+                sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+            })
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration)
-            throws Exception {
+        throws Exception {
         return configuration.getAuthenticationManager();
     }
 
@@ -71,8 +73,8 @@ public class SecurityConfig {
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(
-                Arrays.asList("https://cdpn.io", frontUrl, "http://localhost:3000"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE"));
+            Arrays.asList("https://cdpn.io", frontUrl, vercelUrl, "http://localhost:3000"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE"));
         configuration.setAllowCredentials(true);
         configuration.setAllowedHeaders(Arrays.asList("*"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
