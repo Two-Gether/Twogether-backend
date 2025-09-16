@@ -78,6 +78,7 @@ public class SecurityConfig {
                 frontUrl,
                 vercelUrl,
                 "http://localhost:3000",
+                "https://localhost:3000",
                 "capacitor://localhost"
             ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE"));
