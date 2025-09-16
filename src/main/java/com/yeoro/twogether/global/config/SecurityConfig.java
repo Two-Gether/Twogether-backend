@@ -73,7 +73,13 @@ public class SecurityConfig {
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(
-            Arrays.asList("https://cdpn.io", frontUrl, vercelUrl, "http://localhost:3000"));
+            Arrays.asList(
+                "https://cdpn.io",
+                frontUrl,
+                vercelUrl,
+                "http://localhost:3000",
+                "capacitor://localhost"
+            ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE"));
         configuration.setAllowCredentials(true);
         configuration.setAllowedHeaders(Arrays.asList("*"));
