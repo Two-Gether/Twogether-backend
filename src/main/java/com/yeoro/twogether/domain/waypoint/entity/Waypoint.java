@@ -47,8 +47,12 @@ public class Waypoint extends BaseTime {
     }
 
     public void validateMemberOwnsWaypoint(Member member) {
-        if (this.member != member) {
+        if (!isOwnedBy(member) && !isOwnedBy(member.getPartner())) {
             throw new ServiceException(WAYPOINT_OWNERSHIP_MISMATCH);
         }
+    }
+
+    public boolean isOwnedBy(Member member) {
+        return this.member.equals(member);
     }
 }
