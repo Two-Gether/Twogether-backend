@@ -52,23 +52,33 @@ public class WayPointServiceImpl implements WaypointService {
     }
 
     /**
-     * <p>특정 회원이 소유한 모든 Waypoint를 조회합니다.</p>
+     * <p>개인 & 커플 회원이 소유한 모든 Waypoint를 조회합니다.</p>
      * <p>Waypoint별로 WaypointItem 개수를 함께 계산하여 반환합니다.</p>
      */
     @Override
     public WaypointSummaryListResponse getAllWaypoints(Long memberId) {
-        List<Waypoint> waypoints = waypointRepository.findWaypointByMemberId(memberId);
-        Map<Long, Long> counts = waypointItemRepository.countItemsByMemberId(memberId).stream()
+        Member member = memberService.getCurrentMember(memberId);
+        Member partner = member.getPartner();
+
+        List<Long> memberIds = partner != null
+            ? List.of(member.getId(), partner.getId())
+            : List.of(member.getId());
+
+        // 두 멤버의 waypoint 조회
+        List<Waypoint> waypoints = waypointRepository.findByMemberIds(memberIds);
+
+        // 두 멤버의 waypoint 아이템 개수 조회
+        Map<Long, Long> counts = waypointItemRepository.countItemsByMemberIds(memberIds).stream()
             .collect(Collectors.toMap(
-                row -> (Long) row[0],
-                row -> (Long) row[1]
+                row -> (Long) row[0],  // waypointId
+                row -> (Long) row[1]   // count
             ));
 
         List<WaypointSummaryResponse> results = waypoints.stream()
             .map(waypoint -> new WaypointSummaryResponse(
                 waypoint.getId(),
                 waypoint.getName(),
-                counts.getOrDefault(waypoint.getId(), 0L)  // 없으면 0
+                counts.getOrDefault(waypoint.getId(), 0L)
             ))
             .toList();
 
@@ -114,12 +124,14 @@ public class WayPointServiceImpl implements WaypointService {
     }
 
     /**
-     * memberId를 기반으로 Waypoint 검증 후 반환
+     * memberId를 기반으로 member & partner Waypoint 검증 후 반환
      */
     private Waypoint validateAndGetWaypoint(Long memberId, Long waypointId) {
+        Member member = memberService.getCurrentMember(memberId);
+
         Waypoint waypoint = waypointRepository.findById(waypointId)
             .orElseThrow(() -> new ServiceException(WAYPOINT_NOT_FOUND));
-        Member member = memberService.getCurrentMember(memberId);
+
         waypoint.validateMemberOwnsWaypoint(member);
         return waypoint;
     }
