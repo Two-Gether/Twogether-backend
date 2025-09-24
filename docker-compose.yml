@@ -44,6 +44,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    depends_on:
+      - twogether-spring
     volumes:
       - ./data/nginx:/etc/nginx/conf.d
       - ./data/certbot/conf:/etc/letsencrypt
