@@ -1,50 +1,76 @@
 package com.yeoro.twogether.domain.member.service.Impl;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yeoro.twogether.domain.member.dto.KakaoProfile;
 import com.yeoro.twogether.domain.member.dto.OauthProfile;
+import com.yeoro.twogether.domain.member.entity.LoginPlatform;
 import com.yeoro.twogether.domain.member.service.OauthService;
 import com.yeoro.twogether.global.exception.ErrorCode;
 import com.yeoro.twogether.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
-@Service
+@Service("KAKAO")
 @RequiredArgsConstructor
 public class KakaoOauthService implements OauthService {
 
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
-    /**
-     * 클라이언트에서 전달받은 Kakao Access Token을 이용해 사용자 정보를 가져옴
-     */
+    @Value("${kakao.client-id}")      private String clientId;
+    @Value("${kakao.client-secret:}") private String clientSecret;
+
+    @Override
+    public LoginPlatform platform() { return LoginPlatform.KAKAO; }
+
+    /** 인가 URL */
+    @Override
+    public String buildAuthorizeUrl(String redirectUri, String state) {
+        return UriComponentsBuilder.fromHttpUrl("https://kauth.kakao.com/oauth/authorize")
+                .queryParam("response_type", "code")
+                .queryParam("client_id", clientId)
+                .queryParam("redirect_uri", redirectUri)
+                .queryParam("state", state)
+                .build(true).toUriString();
+    }
+
+    /** code→access_token */
+    @Override
+    public String exchangeCodeForAccessToken(String code, String redirectUri) {
+        String url = "https://kauth.kakao.com/oauth/token";
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("grant_type", "authorization_code");
+        form.add("client_id", clientId);
+        form.add("redirect_uri", redirectUri);
+        form.add("code", code);
+        if (clientSecret != null && !clientSecret.isBlank()) form.add("client_secret", clientSecret);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        ResponseEntity<String> res = restTemplate.postForEntity(url, new HttpEntity<>(form, headers), String.class);
+        if (!res.getStatusCode().is2xxSuccessful() || res.getBody() == null) {
+            throw new ServiceException(ErrorCode.KAKAO_API_ERROR);
+        }
+        try {
+            record KakaoToken(@JsonProperty("access_token") String accessToken) {}
+            return objectMapper.readValue(res.getBody(), KakaoToken.class).accessToken();
+        } catch (Exception e) {
+            throw new ServiceException(ErrorCode.KAKAO_PROFILE_PARSE_FAILED, e);
+        }
+    }
+
+    /** access_token→프로필 */
     @Override
     public OauthProfile getUserProfile(String accessToken) {
-        String kakaoResponse = callKakaoApi(accessToken);
-        KakaoProfile kakaoProfile = parseKakaoProfile(kakaoResponse);
-        return convertToOauthProfile(kakaoProfile);
-    }
-
-    /**
-     * 비밀번호 암호화
-     */
-    @Override
-    public String encodePassword(String rawPassword) {
-        return passwordEncoder.encode(rawPassword);
-    }
-
-    /**
-     * Kakao API 호출
-     */
-    private String callKakaoApi(String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + accessToken);
         HttpEntity<Void> request = new HttpEntity<>(headers);
@@ -60,41 +86,32 @@ public class KakaoOauthService implements OauthService {
         } catch (Exception e) {
             throw new ServiceException(ErrorCode.KAKAO_API_ERROR, e);
         }
-
         if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
             throw new ServiceException(ErrorCode.KAKAO_API_ERROR);
         }
 
-        return response.getBody();
-    }
-
-    /**
-     * Kakao 응답 JSON을 KakaoProfile 객체로 파싱
-     */
-    private KakaoProfile parseKakaoProfile(String kakaoResponse) {
         try {
-            return objectMapper.readValue(kakaoResponse, KakaoProfile.class);
+            KakaoProfile kakaoProfile = objectMapper.readValue(response.getBody(), KakaoProfile.class);
+
+            OauthProfile profile = new OauthProfile();
+            var account = kakaoProfile.getKakaoAccount();
+            var info    = account.getProfile();
+
+            profile.setEmail(account.getEmail());
+            profile.setPhoneNumber(account.getPhoneNumber());
+            profile.setName(info.getNickname());
+            profile.setProfileImageUrl(info.getProfileImageUrl());
+            profile.setPlatformId(String.valueOf(kakaoProfile.getId()));
+            profile.setGender(account.getGender());
+            profile.setAgeRange(account.getAgeRange());
+            return profile;
         } catch (Exception e) {
             throw new ServiceException(ErrorCode.KAKAO_PROFILE_PARSE_FAILED, e);
         }
     }
 
-    /**
-     * KakaoProfile → 공통 OauthProfile DTO 변환
-     */
-    private OauthProfile convertToOauthProfile(KakaoProfile kakaoProfile) {
-        KakaoProfile.KakaoAccount account = kakaoProfile.getKakaoAccount();
-        KakaoProfile.Profile kakaoProfileInfo = account.getProfile();
-
-        OauthProfile profile = new OauthProfile();
-        profile.setEmail(account.getEmail());
-        profile.setPhoneNumber(account.getPhoneNumber());
-        profile.setName(kakaoProfileInfo.getNickname());
-        profile.setProfileImageUrl(kakaoProfileInfo.getProfileImageUrl());
-        profile.setPlatformId(String.valueOf(kakaoProfile.getId()));
-        profile.setGender(account.getGender());
-        profile.setAgeRange(account.getAgeRange());
-
-        return profile;
+    @Override
+    public String encodePassword(String rawPassword) {
+        return passwordEncoder.encode(rawPassword);
     }
 }

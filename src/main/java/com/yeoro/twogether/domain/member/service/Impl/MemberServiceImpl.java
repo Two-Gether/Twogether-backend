@@ -323,7 +323,7 @@ public class MemberServiceImpl implements MemberService {
             if (same) return;
 
             // 새 업로드
-            var up = profileS3Service.upload(
+            ProfileS3Service.UploadResult up = profileS3Service.upload(
                     memberId,
                     image.getOriginalFilename(),
                     image.getContentType(),
@@ -554,6 +554,15 @@ public class MemberServiceImpl implements MemberService {
                 relationshipStartDate
         );
     }
+
+
+    public LoginResponse privateCreateLoginResponse(Long memberId,
+                                                    HttpServletRequest request,
+                                                    HttpServletResponse response) {
+        // 내부 공통 로직을 그대로 재사용
+        return createLoginResponse(memberId, request, response);
+    }
+
 
 
     /**
