@@ -15,23 +15,20 @@ public class KakaoProfile {
     @JsonProperty("kakao_account")
     private KakaoAccount kakaoAccount;
 
-    @Getter
-    @Setter
-    @JsonIgnoreProperties(ignoreUnknown = true)
+    @Getter @Setter
     public static class KakaoAccount {
         private String email;
+        @JsonProperty("phone_number")
         private String phoneNumber;
         private String gender;
+        @JsonProperty("age_range")
         private String ageRange;
         private Profile profile;
     }
 
-    @Getter
-    @Setter
-    @JsonIgnoreProperties(ignoreUnknown = true)
+    @Getter @Setter
     public static class Profile {
         private String nickname;
-
         @JsonProperty("profile_image_url")
         private String profileImageUrl;
     }
