@@ -43,7 +43,7 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/",
                     "/login/**",
-                    "/api/v1/member/**",
+                    "/api/member/**",
                     "/oauth/**",
                     "/error",
                     "/h2-console/**"
