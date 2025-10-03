@@ -27,6 +27,9 @@ public class SecurityConfig {
     @Value("${custom.site.frontUrl}")
     private String frontUrl;
 
+    @Value("${custom.site.vercelUrl}")
+    private String vercelUrl;
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
@@ -77,6 +80,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(
             Arrays.asList(
                 frontUrl,
+                vercelUrl,
                 "http://localhost:3000",
                 "https://localhost:3000",
                 "https://localhost",
