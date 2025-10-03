@@ -1,7 +1,6 @@
 package com.yeoro.twogether.global.config;
 
 import com.yeoro.twogether.global.filter.JwtAuthenticationFilter;
-import java.util.Arrays;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,15 +18,14 @@ import org.springframework.security.web.header.writers.frameoptions.XFrameOption
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     @Value("${custom.site.frontUrl}")
     private String frontUrl;
-
-    @Value("${custom.site.vercelUrl}")
-    private String vercelUrl;
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
@@ -79,7 +77,6 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(
             Arrays.asList(
                 frontUrl,
-                vercelUrl,
                 "http://localhost:3000",
                 "https://localhost:3000",
                 "https://localhost",
