@@ -289,7 +289,7 @@ public class MemberServiceImpl implements MemberService {
     @Override
     @Transactional(readOnly = true)
     public Member getCurrentMember(Long memberId) {
-        return memberRepository.findById(memberId)
+        return memberRepository.findByIdWithPartner(memberId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.MEMBER_NOT_FOUND));
     }
 
@@ -515,14 +515,17 @@ public class MemberServiceImpl implements MemberService {
     /**
      * 중복된 JWT 발급 및 LoginResponse 생성을 처리하는 공통 메서드
      */
+    @Transactional(readOnly = true)
     private LoginResponse createLoginResponse(Long memberId,
                                               HttpServletRequest request,
                                               HttpServletResponse response) {
-        Member me = memberRepository.findById(memberId)
+        Member me = memberRepository.findByIdWithPartner(memberId)
                 .orElseThrow(() -> new ServiceException(MEMBER_NOT_FOUND));
 
         Member partner = me.getPartner();
         Long partnerId = (partner != null) ? partner.getId() : null;
+        String partnerName = (partner != null) ? partner.getName() : null;
+        String partnerNickname = (partner != null) ? partner.getNickname() : null;
 
         // 토큰
         TokenPair tokenPair = tokenService.createTokenPair(
@@ -535,12 +538,9 @@ public class MemberServiceImpl implements MemberService {
         tokenService.sendTokensToClient(request, response, tokenPair);
         tokenService.storeRefreshTokenInRedis(memberId, tokenPair.getRefreshToken());
 
-        //
+        // 나의 정보
         String name = me.getName();
-        String myNickname = me.getNickname(); // 파트너가 '나'에게 준 애칭
-        String partnerName = (partner != null) ? partner.getName() : null;
-        String partnerNickname = (partner != null) ? partner.getNickname() : null;
-
+        String myNickname = me.getNickname();
         LocalDate relationshipStartDate = me.getRelationshipStartDate();
 
         return LoginResponse.of(
@@ -554,7 +554,6 @@ public class MemberServiceImpl implements MemberService {
                 relationshipStartDate
         );
     }
-
 
     public LoginResponse privateCreateLoginResponse(Long memberId,
                                                     HttpServletRequest request,
