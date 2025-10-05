@@ -123,6 +123,7 @@ public class DiaryServiceImpl implements DiaryService {
             .map(diary -> {
                 String mainStickerUrl = diaryIdToMainStickerUrl.get(diary.getId());
                 return DiaryMonthOverviewResponse.builder()
+                    .diaryId(diary.getId())
                     .title(diary.getTitle())
                     .startDate(diary.getStartDate())
                     .endDate(diary.getEndDate())
