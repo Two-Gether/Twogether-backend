@@ -5,6 +5,7 @@ import lombok.Builder;
 
 @Builder
 public record DiaryMonthOverviewResponse(
+    Long diaryId,
     String title,
     LocalDate startDate,
     LocalDate endDate,
