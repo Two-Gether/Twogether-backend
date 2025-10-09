@@ -35,7 +35,7 @@ public class WaypointItem extends BaseTime {
     @Column
     private String address;
 
-    @Column
+    @Column(length = 2000)
     private String imageUrl;
 
     @Column
