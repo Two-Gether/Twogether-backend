@@ -8,6 +8,7 @@ import com.yeoro.twogether.domain.member.entity.LoginPlatform;
 import com.yeoro.twogether.domain.member.service.OauthService;
 import com.yeoro.twogether.global.exception.ErrorCode;
 import com.yeoro.twogether.global.exception.ServiceException;
+import com.yeoro.twogether.global.store.StateStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -18,6 +19,8 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.UUID;
+
 @Service("KAKAO")
 @RequiredArgsConstructor
 public class KakaoOauthService implements OauthService {
@@ -25,14 +28,24 @@ public class KakaoOauthService implements OauthService {
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
+    private final StateStore stateStore; // state 저장/검증 (CSRF)
 
     @Value("${kakao.client-id}")      private String clientId;
     @Value("${kakao.client-secret:}") private String clientSecret;
+    @Value("${kakao.redirect-uri}")   private String redirectUri;
 
     @Override
     public LoginPlatform platform() { return LoginPlatform.KAKAO; }
 
-    /** 인가 URL */
+    /** 프론트에 전달할 인가 URL 생성 (state 발급/저장 포함) */
+    @Override
+    public String buildAuthorizeUrl() {
+        String state = UUID.randomUUID().toString();
+        stateStore.save(state, "1"); // TTL은 StateStore 구현에서 관리
+        return buildAuthorizeUrl(redirectUri, state);
+    }
+
+    /** 인가 URL (직접 state/redirectUri 주입 가능) */
     @Override
     public String buildAuthorizeUrl(String redirectUri, String state) {
         return UriComponentsBuilder.fromHttpUrl("https://kauth.kakao.com/oauth/authorize")
