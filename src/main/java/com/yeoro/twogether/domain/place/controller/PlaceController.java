@@ -1,5 +1,6 @@
 package com.yeoro.twogether.domain.place.controller;
 
+import com.yeoro.twogether.domain.place.dto.response.PlaceByDateResponse;
 import com.yeoro.twogether.domain.place.dto.response.PlaceCreateResponse;
 import com.yeoro.twogether.domain.place.dto.response.PlaceResponse;
 import com.yeoro.twogether.domain.place.service.PlaceService;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -63,5 +65,20 @@ public class PlaceController {
                                             @PathVariable Long placeId) {
         placeService.deletePlace(memberId, placeId);
         return ResponseEntity.ok("삭제되었습니다.");
+    }
+
+    /** 특정 날짜(KST)의 커플 하이라이트 조회 (나 + 연인)
+     *  - date 형식: YYYY-MM-DD (예: 2025-10-10)
+     *  - date 파라미터 없으면 오늘(KST)
+     */
+    @GetMapping("/by-date")
+    public PlaceByDateResponse getPlacesByDate(
+            @Login Long memberId,
+            @RequestParam(required = false) String date
+    ) {
+        LocalDate d = (date == null || date.isBlank())
+                ? null
+                : LocalDate.parse(date); // 형식 오류 시 글로벌 예외 핸들러에서 400 처리 권장
+        return placeService.getPlacesByDate(memberId, d);
     }
 }

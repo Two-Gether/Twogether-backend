@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,6 +25,20 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
 
     @EntityGraph(attributePaths = "tags")
     Optional<Place> findByMember_IdAndAddress(Long memberId, String address);
+
+    boolean existsByMemberAndAddressAndCreatedAtBetween(
+            Member member,
+            String address,
+            java.time.LocalDateTime startInclusive,
+            java.time.LocalDateTime endExclusive
+    );
+
+    @EntityGraph(attributePaths = "tags")
+    List<Place> findAllByMember_IdInAndCreatedAtBetween(
+            List<Long> memberIds,
+            LocalDateTime startInclusive,
+            LocalDateTime endExclusive
+    );
 
     // ===== 회원 삭제용 =====
 

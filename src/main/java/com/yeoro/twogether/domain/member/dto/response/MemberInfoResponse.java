@@ -6,6 +6,9 @@ import com.yeoro.twogether.domain.member.entity.Member;
 
 import java.time.LocalDate;
 
+/**
+ * 회원 정보 응답 DTO
+ */
 public record MemberInfoResponse(
         Long memberId,
         String email,
@@ -13,11 +16,11 @@ public record MemberInfoResponse(
         String name,            // 내 이름
         String myNickname,      // 파트너가 '나'에게 준 애칭 (me.nickname)
 
-        String profileImageUrl, // S3 키 or presigned URL
-        Gender gender,          // male/female/unknown
-        String ageRange,        // 예: "20"
+        String profileImageUrl, // S3 key 또는 presigned URL
+        Gender gender,
+        String ageRange,
         String phoneNumber,
-        LoginPlatform loginPlatform, // LOCAL/KAKAO 등
+        LoginPlatform loginPlatform,
 
         Long partnerId,
         String partnerName,     // 파트너 이름
@@ -25,7 +28,10 @@ public record MemberInfoResponse(
 
         LocalDate relationshipStartDate
 ) {
-    /** 엔티티 값을 그대로 사용 (profileImageUrl에는 S3 key가 들어감) */
+
+    /**
+     * 엔티티 값을 그대로 사용 (profileImageUrl에는 S3 key가 들어감)
+     */
     public static MemberInfoResponse of(Member me) {
         Long partnerId = me.getPartnerId();
         Member partner = me.getPartner();
@@ -37,8 +43,8 @@ public record MemberInfoResponse(
                 me.getId(),
                 me.getEmail(),
                 me.getName(),
-                me.getNickname(),                  // myNickname
-                me.getProfileImageUrl(),           // S3 key 그대로
+                me.getNickname(),       // myNickname
+                me.getProfileImageUrl(),
                 me.getGender(),
                 me.getAgeRange(),
                 me.getPhoneNumber(),
@@ -50,7 +56,9 @@ public record MemberInfoResponse(
         );
     }
 
-    /** presigned URL을 주입해 응답 (profileImageUrl에 presigned URL이 들어감) */
+    /**
+     * presigned URL을 주입해 응답 (profileImageUrl에 presigned URL이 들어감)
+     */
     public static MemberInfoResponse ofResolved(Member me, String resolvedProfileUrl) {
         Long partnerId = me.getPartnerId();
         Member partner = me.getPartner();
@@ -62,8 +70,8 @@ public record MemberInfoResponse(
                 me.getId(),
                 me.getEmail(),
                 me.getName(),
-                me.getNickname(),                  // myNickname
-                resolvedProfileUrl,                // presigned URL
+                me.getNickname(),       // myNickname
+                resolvedProfileUrl,
                 me.getGender(),
                 me.getAgeRange(),
                 me.getPhoneNumber(),

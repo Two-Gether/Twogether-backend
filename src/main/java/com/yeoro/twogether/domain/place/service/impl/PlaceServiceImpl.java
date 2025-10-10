@@ -5,6 +5,7 @@ import com.yeoro.twogether.domain.member.entity.Member;
 import com.yeoro.twogether.domain.member.service.MemberService;
 import com.yeoro.twogether.domain.place.dto.request.PlaceCreateRequest;
 import com.yeoro.twogether.domain.place.dto.request.PlaceUpdateRequest;
+import com.yeoro.twogether.domain.place.dto.response.PlaceByDateResponse;
 import com.yeoro.twogether.domain.place.dto.response.PlaceCreateResponse;
 import com.yeoro.twogether.domain.place.dto.response.PlaceResponse;
 import com.yeoro.twogether.domain.place.entity.Place;
@@ -25,6 +26,9 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,23 +48,39 @@ public class PlaceServiceImpl implements PlaceService {
     @Override
     @Transactional
     public PlaceCreateResponse createPlace(Long memberId, String metaJson, MultipartFile image) {
+        // 현재 로그인한 사용자 정보 조회
         Member member = memberService.getCurrentMember(memberId);
+
+        // metaJson → PlaceCreateRequest DTO로 변환
         PlaceCreateRequest meta = parseCreateMeta(metaJson);
 
-        if (placeRepository.existsByMemberAndAddress(member, meta.address())) {
+        // 오늘(한국시간 KST) 기준으로 "동일 주소" 하이라이트 존재 여부 검사
+        // 오늘 자정(00:00) ~ 내일 자정(00:00) 범위 안에서 같은 주소가 존재하면 예외 발생
+        LocalDateTime[] todayRangeKST = todayRangeKST();
+        boolean alreadyToday = placeRepository.existsByMemberAndAddressAndCreatedAtBetween(
+                member,
+                meta.address(),
+                todayRangeKST[0],
+                todayRangeKST[1]
+        );
+        if (alreadyToday) {
+            // 동일한 장소에 대해 오늘 이미 업로드했다면 다시 올릴 수 없음
             throw new ServiceException(ErrorCode.PLACE_ADDRESS_EXISTS);
         }
 
+        // 태그 검증 (공백 제거, 중복 제거, 최대 5개 제한)
         List<String> tags = validateTags(meta.tags());
 
+        // 이미지 유효성 검사
         if (image == null || image.isEmpty()) {
             throw new ServiceException(ErrorCode.PLACE_CREATION_FAILED);
         }
 
-        // 업로드 키를 미리 받아두고, 롤백 시 정리
+        // 이미지 업로드 및 롤백 대비 등록
         HighlightS3Service.UploadResult up = uploadImage(memberId, image);
-        registerRollbackDelete(up.key());
+        registerRollbackDelete(up.key()); // 트랜잭션 롤백 시 업로드된 이미지 삭제
 
+        // Place 엔티티 생성 및 저장
         Place place = Place.builder()
                 .member(member)
                 .imageUrl(up.key())
@@ -72,9 +92,11 @@ public class PlaceServiceImpl implements PlaceService {
 
         placeRepository.save(place);
 
+        // Presigned URL 발급 및 응답 반환
         String presigned = highlightS3Service.presignedGetUrl(up.key());
         return PlaceCreateResponse.fromWithResolvedUrl(place, presigned);
     }
+
 
 
     /**
@@ -162,6 +184,56 @@ public class PlaceServiceImpl implements PlaceService {
         }
     }
 
+    /**
+     * 날짜 기준 Place 조회 (본인 + 연인이 올린 하이라이트 조회)
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public PlaceByDateResponse getPlacesByDate(Long memberId, LocalDate dateKst) {
+        // 본인/파트너 식별
+        Member me = memberService.getCurrentMember(memberId);
+
+        Long partnerId = memberService.getPartnerId(memberId);
+
+        // 날짜(KST) 범위 계산: 해당 날짜 00:00 ~ 다음날 00:00
+        ZoneId KST = ZoneId.of("Asia/Seoul");
+        LocalDate d = (dateKst != null) ? dateKst : LocalDate.now(KST);
+        LocalDateTime start = d.atStartOfDay();
+        LocalDateTime end = d.plusDays(1).atStartOfDay();
+
+        // 쿼리용 대상 memberIds
+        List<Long> memberIds = (partnerId != null)
+                ? List.of(memberId, partnerId)
+                : List.of(memberId);
+
+        // 조회
+        List<Place> all = placeRepository.findAllByMember_IdInAndCreatedAtBetween(memberIds, start, end);
+
+        // presigned URL 변환
+        var mine = all.stream()
+                .filter(p -> p.getMember().getId().equals(memberId))
+                .map(p -> {
+                    String key = p.getImageUrl();
+                    String url = (key == null || key.isBlank()) ? null : highlightS3Service.presignedGetUrl(key);
+                    return PlaceResponse.fromWithResolvedUrl(p, url);
+                })
+                .toList();
+
+        var partner = (partnerId == null) ? List.<PlaceResponse>of()
+                : all.stream()
+                .filter(p -> p.getMember().getId().equals(partnerId))
+                .map(p -> {
+                    String key = p.getImageUrl();
+                    String url = (key == null || key.isBlank()) ? null : highlightS3Service.presignedGetUrl(key);
+                    return PlaceResponse.fromWithResolvedUrl(p, url);
+                })
+                .toList();
+
+        return new PlaceByDateResponse(mine, partner);
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------
+
 
 
     /**
@@ -187,15 +259,18 @@ public class PlaceServiceImpl implements PlaceService {
     }
 
     /**
-     * 태그 검증 (최대 2개)
+     * 태그 검증 (최대 5개)
      */
     private List<String> validateTags(List<String> tags) {
         List<String> safe = Optional.ofNullable(tags).orElse(List.of()).stream()
                 .filter(t -> t != null && !t.isBlank())
                 .map(String::trim)
                 .distinct()
+                .limit(5) // 과다 요청 방지
                 .toList();
-        if (safe.size() > 2) throw new ServiceException(ErrorCode.PLACE_TAG_LIMIT_EXCEEDED);
+        if (safe.size() > 5) {
+            throw new ServiceException(ErrorCode.PLACE_TAG_LIMIT_EXCEEDED);
+        }
         return safe;
     }
 
@@ -300,5 +375,15 @@ public class PlaceServiceImpl implements PlaceService {
                 }
             }
         });
+    }
+
+
+
+    private LocalDateTime[] todayRangeKST() {
+        ZoneId KST = ZoneId.of("Asia/Seoul"); // 한국 시간 기준
+        LocalDate today = LocalDate.now(KST);
+        LocalDateTime start = today.atStartOfDay();
+        LocalDateTime end = today.plusDays(1).atStartOfDay();
+        return new LocalDateTime[]{ start, end };
     }
 }
