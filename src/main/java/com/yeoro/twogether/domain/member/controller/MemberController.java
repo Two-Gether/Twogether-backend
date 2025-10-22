@@ -3,6 +3,7 @@ package com.yeoro.twogether.domain.member.controller;
 import com.yeoro.twogether.domain.member.dto.request.*;
 import com.yeoro.twogether.domain.member.dto.response.LoginResponse;
 import com.yeoro.twogether.domain.member.dto.response.MemberInfoResponse;
+import com.yeoro.twogether.domain.member.dto.response.PasswordResetVerifyResponse;
 import com.yeoro.twogether.domain.member.entity.Member;
 import com.yeoro.twogether.domain.member.service.EmailVerificationService;
 import com.yeoro.twogether.domain.member.service.MemberService;
@@ -18,8 +19,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URL;
 
@@ -182,5 +183,28 @@ public class MemberController {
     @PostMapping("/token/refresh")
     public LoginResponse refreshToken(HttpServletRequest request, HttpServletResponse response) {
         return memberService.refreshTokens(request, response);
+    }
+
+    // 비밀번호 재설정 코드 발송
+    @PostMapping("/password/forgot")
+    public ResponseEntity<String> forgotPassword(@RequestBody @Valid PasswordResetCodeRequest req) {
+        memberService.issuePasswordResetCode(req.email());
+        return ResponseEntity.ok("비밀번호 재설정 코드가 이메일로 전송되었습니다.");
+    }
+
+    // 코드 검증 → Reset Ticket 발급
+    @PostMapping("/password/verify")
+    public ResponseEntity<PasswordResetVerifyResponse> verifyCode(@RequestBody @Valid PasswordResetVerifyRequest req) {
+        PasswordResetVerifyResponse resp = memberService.verifyPasswordResetCode(req.email(), req.code());
+        return ResponseEntity.ok(resp);
+    }
+
+    // Reset Ticket + 새 비밀번호로 최종 변경
+    @PostMapping("/password/reset")
+    public ResponseEntity<String> resetPassword(@RequestBody @Valid PasswordResetFinalizeRequest req,
+                                                HttpServletRequest httpRequest,
+                                                HttpServletResponse httpResponse) {
+        memberService.resetPasswordWithTicket(req.email(), req.resetTicket(), req.newPassword(), httpRequest, httpResponse);
+        return ResponseEntity.ok("성공적으로 비밀번호를 변경했습니다.");
     }
 }

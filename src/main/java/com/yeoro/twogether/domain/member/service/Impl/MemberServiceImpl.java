@@ -5,9 +5,11 @@ import com.yeoro.twogether.domain.member.dto.OauthProfile;
 import com.yeoro.twogether.domain.member.dto.request.LoginRequest;
 import com.yeoro.twogether.domain.member.dto.request.SignupRequest;
 import com.yeoro.twogether.domain.member.dto.response.LoginResponse;
+import com.yeoro.twogether.domain.member.dto.response.PasswordResetVerifyResponse;
 import com.yeoro.twogether.domain.member.entity.Gender;
 import com.yeoro.twogether.domain.member.entity.LoginPlatform;
 import com.yeoro.twogether.domain.member.entity.Member;
+import com.yeoro.twogether.domain.member.mail.MailService;
 import com.yeoro.twogether.domain.member.repository.MemberRepository;
 import com.yeoro.twogether.domain.member.service.EmailVerificationService;
 import com.yeoro.twogether.domain.member.service.MemberService;
@@ -20,6 +22,7 @@ import com.yeoro.twogether.global.exception.ServiceException;
 import com.yeoro.twogether.global.service.s3.HighlightS3Service;
 import com.yeoro.twogether.global.service.s3.ProfileS3Service;
 import com.yeoro.twogether.global.store.PartnerCodeStore;
+import com.yeoro.twogether.global.store.PasswordResetStore;
 import com.yeoro.twogether.global.token.JwtService;
 import com.yeoro.twogether.global.token.TokenPair;
 import com.yeoro.twogether.global.token.TokenService;
@@ -43,6 +46,7 @@ import java.security.MessageDigest;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import static com.yeoro.twogether.global.exception.ErrorCode.MEMBER_NOT_FOUND;
@@ -67,8 +71,8 @@ public class MemberServiceImpl implements MemberService {
     private final WaypointItemRepository waypointItemRepository;
     private final MemberHardDeleteTx memberHardDeleteTx;
     private final ProfileS3Service profileS3Service;
-
-
+    private final PasswordResetStore passwordResetStore;
+    private final MailService mailService;
 
 
     /**
@@ -703,5 +707,108 @@ public class MemberServiceImpl implements MemberService {
             return imageUrlOrKey;
         }
     }
+
+    // 비밀번호 재설정 코드 발송
+    // MemberServiceImpl.issuePasswordResetCode
+    @Override
+    @Transactional
+    public void issuePasswordResetCode(String email) {
+        var normEmail = email == null ? null : email.trim().toLowerCase(Locale.ROOT);
+        var opt = memberRepository.findByEmail(normEmail);
+
+        // 존재하지 않으면 실제 메일 발송/저장은 생략 (응답은 항상 동일 문구로)
+        if (opt.isEmpty()) {
+            // 시도 카운트도 증가시키지 않고 조용히 반환
+            return;
+        }
+
+        // LOCAL 계정만 허용
+        Member m = opt.get();
+        if (m.getLoginPlatform() != LoginPlatform.LOCAL) {
+            // 소셜 계정은 미지원: 조용히 반환
+            return;
+        }
+
+        // 발송 시도 제한: 과도한 요청 방지
+        if (passwordResetStore.tooManyAttempts(normEmail)) {
+            throw new ServiceException(ErrorCode.TOO_MANY_REQUESTS);
+        }
+
+        String code = CodeGenerator.generateNumericCode(6);
+        passwordResetStore.saveCode(normEmail, code);
+
+        try {
+            mailService.sendPasswordResetCode(normEmail, code);
+        } catch (Exception e) {
+            log.error("[pwdreset] 메일 전송 실패: {}", normEmail, e);
+            throw new ServiceException(ErrorCode.MAIL_SEND_FAILED);
+        }
+    }
+
+
+    @Override
+    @Transactional
+    public PasswordResetVerifyResponse verifyPasswordResetCode(String email, String code) {
+        if (passwordResetStore.tooManyAttempts(email)) {
+            throw new ServiceException(ErrorCode.TOO_MANY_REQUESTS);
+        }
+
+        String saved = passwordResetStore.getCode(email);
+        if (saved == null) {
+            throw new ServiceException(ErrorCode.PASSWORD_RESET_CODE_EXPIRED);
+        }
+        if (!saved.equalsIgnoreCase(code)) {
+            throw new ServiceException(ErrorCode.PASSWORD_RESET_CODE_INVALID);
+        }
+
+        passwordResetStore.deleteCode(email);
+        passwordResetStore.clearAttempts(email);
+
+        String ticket = passwordResetStore.issueTicket(email);
+        return new PasswordResetVerifyResponse(ticket);
+    }
+
+    @Override
+    @Transactional
+    public void resetPasswordWithTicket(String email,
+                                        String resetTicket,
+                                        String newPassword,
+                                        HttpServletRequest request,
+                                        HttpServletResponse response) {
+        boolean ticketOk = passwordResetStore.consumeTicket(email, resetTicket);
+        if (!ticketOk) throw new ServiceException(ErrorCode.PASSWORD_RESET_TICKET_INVALID);
+
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new ServiceException(ErrorCode.MEMBER_NOT_FOUND));
+
+        if (member.getLoginPlatform() != LoginPlatform.LOCAL) {
+            throw new ServiceException(ErrorCode.NOT_LOCAL_MEMBER);
+        }
+        if (!PasswordValidator.isValid(newPassword)) {
+            throw new ServiceException(ErrorCode.PASSWORD_NOT_VALID);
+        }
+        if (passwordEncoder.matches(newPassword, member.getPassword())) {
+            throw new ServiceException(ErrorCode.PASSWORD_RESET_SAME_AS_OLD);
+        }
+
+        // 비밀번호 업데이트
+        member.setPassword(passwordEncoder.encode(newPassword));
+
+        // 기존 토큰 무효화(해당 회원만)
+        jwtService.invalidateRefreshToken(member.getId());
+        tokenService.removeRefreshTokenFromRedis(member.getId());
+        jwtService.clearRefreshTokenCookie(response);
+
+        // 추가: 현재 요청에 Access Token이 있다면 블랙리스트 처리(선택적)
+        String currentAccessToken = jwtService.resolveToken(request);
+        if (currentAccessToken != null && !currentAccessToken.isBlank()) {
+            tokenService.blacklistAccessToken(currentAccessToken);
+        }
+
+        // 클린업
+        passwordResetStore.deleteCode(email);
+        passwordResetStore.clearAttempts(email);
+    }
+
 }
 

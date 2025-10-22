@@ -21,6 +21,16 @@ public enum ErrorCode {
     PASSWORD_SAME_AS_OLD("400-5", "member.password.same.as.old", HttpStatus.BAD_REQUEST),
     PASSWORD_NOT_SET("400-6", "member.password.not.set", HttpStatus.BAD_REQUEST),
 
+    // Password Reset
+    PASSWORD_RESET_CODE_EXPIRED("400-30", "password.reset.code.expired", HttpStatus.BAD_REQUEST),
+    PASSWORD_RESET_CODE_INVALID("400-31", "password.reset.code.invalid", HttpStatus.BAD_REQUEST),
+    PASSWORD_RESET_TICKET_INVALID("400-32", "password.reset.ticket.invalid", HttpStatus.BAD_REQUEST),
+    PASSWORD_RESET_SAME_AS_OLD("400-33", "password.reset.same.as.old", HttpStatus.BAD_REQUEST),
+    TOO_MANY_REQUESTS("429-1", "too.many.requests", HttpStatus.TOO_MANY_REQUESTS),
+    MAIL_SEND_FAILED("500-30", "mail.send.failed", HttpStatus.INTERNAL_SERVER_ERROR),
+
+
+
     // Partner Errors
     PARTNER_CODE_INVALID("400-1", "partner.code.invalid", HttpStatus.BAD_REQUEST),
     SELF_PARTNER_NOT_ALLOWED("400-2", "partner.self.not.allowed", HttpStatus.BAD_REQUEST),

@@ -32,5 +32,12 @@ public class CodeGenerator {
         }
         return sb.toString();
     }
+
+    // 비밀번호 재설정용 6자리 숫자 코드
+    public static String generateNumericCode(int digits) {
+        int bound = (int) Math.pow(10, digits);
+        int n = RANDOM.nextInt(bound);
+        return String.format("%0" + digits + "d", n);
+    }
 }
 
